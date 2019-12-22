@@ -3,7 +3,7 @@
 This repo contains my solutions for Advent of Code 2019 (https://adventofcode.com/2019). I've used Rust as my language of choice for this project.
 
 ## Current Progress
-* Day 1:  (#)( )
+* Day 1:  (#)(#)
 * Day 2:  ( )( )
 * Day 3:  ( )( )
 * Day 4:  ( )( )

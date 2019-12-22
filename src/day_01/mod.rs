@@ -1,5 +1,4 @@
 use std::io::{BufRead, BufReader};
-extern crate colored;
 
 /// Calculates the solution to Day 01 Part 1 challenge.
 pub fn day_01_solution_p1(filename: String) {
@@ -10,12 +9,29 @@ pub fn day_01_solution_p1(filename: String) {
     // Calculate total fuel requirement
     let mut total_fuel_req = 0;
     for line in file.lines() {
-        let module_mass = line.unwrap().parse::<i32>();
-        let fuel_req = calculate_fuel_req(module_mass.unwrap());
+        let module_mass = line.unwrap().parse::<i32>().unwrap();
+        let fuel_req = calculate_fuel_req(module_mass);
         total_fuel_req += fuel_req;
     }
     // Display challenge solution
     println!("Day 01 Part 1 solution is: {}", total_fuel_req);
+}
+
+/// Calculates the solution to Day 01 Part 2 challenge.
+pub fn day_01_solution_p2(filename: String) {
+    // Open up the file
+    let file = super::utils::fs::open_file(filename);
+    // Create a buffered reader
+    let file = BufReader::new(file);
+    // Calculate the total fuel requirement (recursive)
+    let mut total_fuel_req = 0;
+    for line in file.lines() {
+        let module_mass = line.unwrap().parse::<i32>().unwrap();
+        let fuel_req = calculate_fuel_req_recursive(module_mass);
+        total_fuel_req += fuel_req;
+    }
+    // Display challenge solution
+    println!("Day 01 Part 2 solution is: {}", total_fuel_req);
 }
 
 /// Calculates the fuel requirement for a single given module mass.
@@ -29,4 +45,19 @@ fn calculate_fuel_req(module_mass: i32) -> i32 {
         return 0;
     }
     return result;
+}
+
+/// Calculates the total fuel requirement for given module mass, taking into
+/// account the fuel required to accomodate the fuel mass itself.
+fn calculate_fuel_req_recursive(module_mass: i32) -> i32 {
+    let mut fuel_req = module_mass;
+    let mut total_fuel_req = 0;
+    loop {
+        fuel_req = calculate_fuel_req(fuel_req);
+        if fuel_req <= 0 {
+            break;
+        }
+        total_fuel_req += fuel_req;
+    }
+    return total_fuel_req;
 }
