@@ -1,7 +1,7 @@
 use std::io::{BufRead, BufReader};
 
 /// Calculates the solution to Day 01 Part 1 challenge.
-pub fn day_01_solution_p1(filename: String) {
+pub fn solution_part_1(filename: String) {
     // Open up the file (read-only)
     let file = super::utils::fs::open_file(filename);
     // Created a buffered reader of the file
@@ -18,7 +18,7 @@ pub fn day_01_solution_p1(filename: String) {
 }
 
 /// Calculates the solution to Day 01 Part 2 challenge.
-pub fn day_01_solution_p2(filename: String) {
+pub fn solution_part_2(filename: String) {
     // Open up the file
     let file = super::utils::fs::open_file(filename);
     // Create a buffered reader

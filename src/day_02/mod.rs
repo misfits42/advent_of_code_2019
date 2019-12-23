@@ -8,7 +8,7 @@ const INTCODE_OPCODE_MULT: i32 = 2;
 const INTCODE_OPCODE_HALT: i32 = 99;
 
 /// Calculates and displays the solution to Day 02 Part 1 challenge.
-pub fn day_02_solution_p1(filename: String) {
+pub fn solution_part_1(filename: String) {
     // Open file
     let mut file = super::utils::fs::open_file(filename);
     // Extract intcode program arguments
@@ -19,7 +19,7 @@ pub fn day_02_solution_p1(filename: String) {
 }
 
 /// Calculates and displays the solution to Day 02 Part 2 challenge.
-pub fn day_02_solution_p2(filename: String) {
+pub fn solution_part_2(filename: String) {
     // This is the value we are looking for in position zero across the runs
     const TARGET_LOC_ZERO: i32 = 19690720;
     // Open file

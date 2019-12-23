@@ -8,5 +8,5 @@ pub mod utils;
 #[macro_use] extern crate itertools;
 
 fn main() {
-    day_03::day_03_solution_p1(String::from("./input/day_03/input.txt"));
+    day_03::solution_part_1(String::from("./input/day_03/input.txt"));
 }

@@ -21,7 +21,7 @@ const GRID_WIRE_2: usize = 2;
 const GRID_INTERSECTION: usize = 3;
 
 /// Calculates and displays the solution for Day 03 Part 1 challenge.
-pub fn day_03_solution_p1(filename: String) {
+pub fn solution_part_1(filename: String) {
     // Open file
     let mut file = super::utils::fs::open_file(filename);
     // Read file lines
@@ -53,6 +53,11 @@ pub fn day_03_solution_p1(filename: String) {
     // Display result
     let min_manhattan_dist = distances.iter().min().unwrap();
     println!("Day 03 Part 1 solution is: {}", min_manhattan_dist);
+}
+
+/// Calculates and displays the solution for Day 03 Part 2.
+pub fn solution_part_2(filename: String) {
+
 }
 
 /// Calculates the Manhattan distance between the two given points. Function
