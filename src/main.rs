@@ -8,6 +8,6 @@ pub mod utils;
 #[macro_use] extern crate itertools;
 
 fn main() {
-    let solution = day_03::solution_part_1(String::from("./input/day_03/input.txt"));
+    let solution = day_02::solution_part_1(String::from("./input/day_02/test/test_01.txt"));
     println!("Solution: {}", solution);
 }

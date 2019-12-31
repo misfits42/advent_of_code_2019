@@ -1,37 +1,37 @@
 use std::io::{BufRead, BufReader};
 
 /// Calculates the solution to Day 01 Part 1 challenge.
-pub fn solution_part_1(filename: String) {
+pub fn solution_part_1(filename: String) -> i32 {
     // Open up the file (read-only)
     let file = super::utils::fs::open_file(filename);
     // Created a buffered reader of the file
     let file = BufReader::new(file);
     // Calculate total fuel requirement
-    let mut total_fuel_req = 0;
+    let mut total_fuel_req: i32 = 0;
     for line in file.lines() {
         let module_mass = line.unwrap().parse::<i32>().unwrap();
         let fuel_req = calculate_fuel_req(module_mass);
         total_fuel_req += fuel_req;
     }
     // Display challenge solution
-    println!("Day 01 Part 1 solution is: {}", total_fuel_req);
+    return total_fuel_req;
 }
 
 /// Calculates the solution to Day 01 Part 2 challenge.
-pub fn solution_part_2(filename: String) {
+pub fn solution_part_2(filename: String) -> i32 {
     // Open up the file
     let file = super::utils::fs::open_file(filename);
     // Create a buffered reader
     let file = BufReader::new(file);
     // Calculate the total fuel requirement (recursive)
-    let mut total_fuel_req = 0;
+    let mut total_fuel_req: i32 = 0;
     for line in file.lines() {
-        let module_mass = line.unwrap().parse::<i32>().unwrap();
-        let fuel_req = calculate_fuel_req_recursive(module_mass);
+        let module_mass: i32 = line.unwrap().parse::<i32>().unwrap();
+        let fuel_req: i32 = calculate_fuel_req_recursive(module_mass);
         total_fuel_req += fuel_req;
     }
     // Display challenge solution
-    println!("Day 01 Part 2 solution is: {}", total_fuel_req);
+    return total_fuel_req;
 }
 
 /// Calculates the fuel requirement for a single given module mass.
@@ -60,4 +60,49 @@ fn calculate_fuel_req_recursive(module_mass: i32) -> i32 {
         total_fuel_req += fuel_req;
     }
     return total_fuel_req;
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_p1_example_input_1() {
+        let result = super::solution_part_1(String::from("./input/day_01/test/test_01.txt"));
+        assert_eq!(2, result);
+    }
+
+    #[test]
+    fn test_p1_example_input_2() {
+        let result = super::solution_part_1(String::from("./input/day_01/test/test_02.txt"));
+        assert_eq!(2, result);
+    }
+
+    #[test]
+    fn test_p1_example_input_3() {
+        let result = super::solution_part_1(String::from("./input/day_01/test/test_03.txt"));
+        assert_eq!(654, result);
+    }
+
+    #[test]
+    fn test_p1_example_input_4() {
+        let result = super::solution_part_1(String::from("./input/day_01/test/test_04.txt"));
+        assert_eq!(33583, result);
+    }
+
+    #[test]
+    fn test_p2_example_input_2() {
+        let result = super::solution_part_2(String::from("./input/day_01/test/test_02.txt"));
+        assert_eq!(2, result);
+    }
+
+    #[test]
+    fn test_p2_example_input_3() {
+        let result = super::solution_part_2(String::from("./input/day_01/test/test_03.txt"));
+        assert_eq!(966, result);
+    }
+
+    #[test]
+    fn test_p2_example_input_4() {
+        let result = super::solution_part_2(String::from("./input/day_01/test/test_04.txt"));
+        assert_eq!(50346, result);
+    }
 }

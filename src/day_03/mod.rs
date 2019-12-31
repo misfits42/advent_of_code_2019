@@ -230,26 +230,26 @@ fn process_wire_nogrid(
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_part_1_example_input_1() {
-        let result = super::solution_part_1(String::from("./input/day_03/test/test_input_01.txt"));
+    fn test_p1_example_input_1() {
+        let result = super::solution_part_1(String::from("./input/day_03/test/test_01.txt"));
         assert_eq!(159, result);
     }
 
     #[test]
-    fn test_part_1_example_input_2() {
-        let result = super::solution_part_1(String::from("./input/day_03/test/test_input_02.txt"));
+    fn test_p1_example_input_2() {
+        let result = super::solution_part_1(String::from("./input/day_03/test/test_02.txt"));
         assert_eq!(135, result);
     }
 
     #[test]
-    fn test_part_2_example_input_1() {
-        let result = super::solution_part_2(String::from("./input/day_03/test/test_input_01.txt"));
+    fn test_p2_example_input_1() {
+        let result = super::solution_part_2(String::from("./input/day_03/test/test_01.txt"));
         assert_eq!(610, result);
     }
 
     #[test]
-    fn test_part_2_example_input_2() {
-        let result = super::solution_part_2(String::from("./input/day_03/test/test_input_02.txt"));
+    fn test_p2_example_input_2() {
+        let result = super::solution_part_2(String::from("./input/day_03/test/test_02.txt"));
         assert_eq!(410, result);
     }
 }

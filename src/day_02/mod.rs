@@ -8,18 +8,18 @@ const INTCODE_OPCODE_MULT: i32 = 2;
 const INTCODE_OPCODE_HALT: i32 = 99;
 
 /// Calculates and displays the solution to Day 02 Part 1 challenge.
-pub fn solution_part_1(filename: String) {
+pub fn solution_part_1(filename: String) -> i32 {
     // Open file
     let mut file = super::utils::fs::open_file(filename);
     // Extract intcode program arguments
     let int_args = extract_intcode_arguments_from_file(&mut file);
     // Process the intcode program
     let result = process_intcode_program(&int_args, None);
-    println!("Day 02 Part 1 solution is: {}", result);
+    return result;
 }
 
 /// Calculates and displays the solution to Day 02 Part 2 challenge.
-pub fn solution_part_2(filename: String) {
+pub fn solution_part_2(filename: String) -> i32 {
     // This is the value we are looking for in position zero across the runs
     const TARGET_LOC_ZERO: i32 = 19690720;
     // Open file
@@ -32,8 +32,7 @@ pub fn solution_part_2(filename: String) {
         let pos_zero = process_intcode_program(&int_args, Some(&pair));
         if pos_zero == TARGET_LOC_ZERO {
             let output = 100 * pair[0] + pair[1];
-            println!("Day 02 Part 2 solution is: {}", output);
-            return;
+            return output;
         }
     }
     // Shouldn't get here!
@@ -76,6 +75,10 @@ fn process_intcode_program(program: &Vec<i32>, maybe_pair: Option<&Vec<i32>>) ->
     loop {
         // Extract program parameters for current run
         let opcode: i32 = program[stack_pointer];
+        // Break here if HALT code is reached, just in case we are at end of program array
+        if opcode == INTCODE_OPCODE_HALT {
+            break;
+        }
         let arg1_ind: usize = program[stack_pointer + 1] as usize;
         let arg2_ind: usize = program[stack_pointer + 2] as usize;
         let arg1: i32 = program[arg1_ind];
@@ -88,8 +91,6 @@ fn process_intcode_program(program: &Vec<i32>, maybe_pair: Option<&Vec<i32>>) ->
         } else if opcode == INTCODE_OPCODE_MULT {
             let output = arg1 * arg2;
             program[out_ind] = output;
-        } else if opcode == INTCODE_OPCODE_HALT {
-            break;
         } else { // Shouldn't get here
             panic!("Day 02 Part 1: HERE BE DRAGONS!")
         }
@@ -98,4 +99,31 @@ fn process_intcode_program(program: &Vec<i32>, maybe_pair: Option<&Vec<i32>>) ->
     }
     // Return the resulting element at location 0
     return program[0];
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_p1_example_input_1() {
+        let result = super::solution_part_1(String::from("./input/day_02/test/test_01.txt"));
+        assert_eq!(2, result);
+    }
+
+    #[test]
+    fn test_p1_example_input_2() {
+        let result = super::solution_part_1(String::from("./input/day_02/test/test_02.txt"));
+        assert_eq!(2, result);
+    }
+
+    #[test]
+    fn test_p1_example_input_3() {
+        let result = super::solution_part_1(String::from("./input/day_02/test/test_03.txt"));
+        assert_eq!(2, result);
+    }
+
+    #[test]
+    fn test_p1_example_input_4() {
+        let result = super::solution_part_1(String::from("./input/day_02/test/test_04.txt"));
+        assert_eq!(30, result);
+    }
 }
