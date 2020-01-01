@@ -1,15 +1,17 @@
 // Import project utility modules
 use super::utils::fs;
-use super::utils::intcode;
+use super::utils::intcode::IntcodeMachine;
 
 /// Calculates and displays the solution to Day 02 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> i32 {
     // Open file
     let mut file = fs::open_file(filename);
     // Extract intcode program arguments
-    let int_args = intcode::extract_intcode_arguments_from_file(&mut file);
+    let int_args = IntcodeMachine::extract_intcode_memory_from_file(&mut file);
+    let mut machine = IntcodeMachine::new(int_args, vec![]);
+    machine.execute_program();
     // Process the intcode program
-    let result = intcode::process_intcode_program(&int_args);
+    let result = machine.get_location_zero();
     return result;
 }
 
@@ -20,14 +22,15 @@ pub fn solution_part_2(filename: String) -> i32 {
     // Open file
     let mut file = fs::open_file(filename);
     // Extract intcode program arguments
-    let int_args = intcode::extract_intcode_arguments_from_file(&mut file);
+    let int_args = IntcodeMachine::extract_intcode_memory_from_file(&mut file);
     // Let's process the intcode program with each possible value pair
     for (p0, p1) in iproduct!(0..100, 0..100) {
         let mut updated_int_args = int_args.to_vec();
         updated_int_args[0] = p0;
         updated_int_args[1] = p1;
-        let pos_zero = intcode::process_intcode_program(&int_args);
-        if pos_zero == TARGET_LOC_ZERO {
+        let mut machine = IntcodeMachine::new(updated_int_args, vec![]);
+        machine.execute_program();
+        if machine.get_location_zero() == TARGET_LOC_ZERO {
             let output = 100 * p0 + p1;
             return output;
         }
