@@ -7,6 +7,10 @@ const OPCODE_ADD: i32 = 1;
 const OPCODE_MULT: i32 = 2;
 const OPCODE_INPUT: i32 = 3;
 const OPCODE_OUTPUT: i32 = 4;
+const OPCODE_JUMP_IF_TRUE: i32 = 5;
+const OPCODE_JUMP_IF_FALSE: i32 = 6;
+const OPCODE_LESS_THAN: i32 = 7;
+const OPCODE_EQUALS: i32 = 8;
 const OPCODE_HALT: i32 = 99;
 // Parameter modes
 const PARAM_MODE_POSITION: i32 = 0;
@@ -43,17 +47,17 @@ impl IntcodeMachine {
             }
             // Check the current opcode and perform required operation
             if opcode == OPCODE_ADD {
-                let arg_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                let arg_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
+                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
                 let output_index = self.retrieve_from_memory(self.program_counter + 3);
-                let output = arg_1 + arg_2;
+                let output = param_1 + param_2;
                 self.store_in_memory(output, output_index as usize);
                 self.program_counter += 4;
             } else if opcode == OPCODE_MULT {
-                let arg_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                let arg_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
+                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
                 let output_index = self.retrieve_from_memory(self.program_counter + 3);
-                let output = arg_1 * arg_2;
+                let output = param_1 * param_2;
                 self.store_in_memory(output, output_index as usize);
                 self.program_counter += 4;
             } else if opcode == OPCODE_INPUT {
@@ -65,9 +69,47 @@ impl IntcodeMachine {
                 self.store_in_memory(input_value, output_index as usize);
                 self.program_counter += 2;
             } else if opcode == OPCODE_OUTPUT {
-                let arg_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                self.output.push(arg_1);
+                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                self.output.push(param_1);
                 self.program_counter += 2;
+            } else if opcode == OPCODE_JUMP_IF_TRUE {
+                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
+                if param_1 != 0 {
+                    self.program_counter = param_2 as usize;
+                } else {
+                    self.program_counter += 3;
+                }
+            } else if opcode == OPCODE_JUMP_IF_FALSE {
+                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
+                if param_1 == 0 {
+                    self.program_counter = param_2 as usize;
+                } else {
+                    self.program_counter += 3;
+                }
+            } else if opcode == OPCODE_LESS_THAN {
+                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
+                // Third parameter is address - don't need to use parameter modes
+                let address = self.retrieve_from_memory(self.program_counter + 3);
+                if param_1 < param_2 {
+                    self.store_in_memory(1, address as usize);
+                } else {
+                    self.store_in_memory(0, address as usize);
+                }
+                self.program_counter += 4;
+            } else if opcode == OPCODE_EQUALS {
+                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
+                // Third parameter is address - don't need to use parameter modes
+                let address = self.retrieve_from_memory(self.program_counter + 3);
+                if param_1 == param_2 {
+                    self.store_in_memory(1, address as usize);
+                } else {
+                    self.store_in_memory(0, address as usize);
+                }
+                self.program_counter += 4;
             } else {
                 // Shouldn't get here
                 panic!("Opcode not recognised [pc: {}, opcode {}]", self.program_counter, opcode);
@@ -202,7 +244,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_position_mode_equal() {
         let mut machine = IntcodeMachine::new(vec![3,9,8,9,10,9,4,9,99,-1,8], vec![8]);
         machine.execute_program();
@@ -210,7 +251,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_position_mode_not_equal() {
         let mut machine = IntcodeMachine::new(vec![3,9,8,9,10,9,4,9,99,-1,8], vec![10]);
         machine.execute_program();
@@ -218,7 +258,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_position_mode_less_than() {
         let mut machine = IntcodeMachine::new(vec![3,9,7,9,10,9,4,9,99,-1,8], vec![3]);
         machine.execute_program();
@@ -226,7 +265,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_position_mode_greater_than() {
         let mut machine = IntcodeMachine::new(vec![3,9,7,9,10,9,4,9,99,-1,8], vec![10]);
         machine.execute_program();
@@ -234,15 +272,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_immediate_mode_equal() {
         let mut machine = IntcodeMachine::new(vec![3,3,1108,-1,8,3,4,3,99], vec![8]);
         machine.execute_program();
-        assert_eq!(1, machine.output[1]);
+        assert_eq!(1, machine.output[0]);
     }
 
     #[test]
-    #[ignore]
     fn test_immediate_mode_not_equal() {
         let mut machine = IntcodeMachine::new(vec![3,3,1108,-1,8,3,4,3,99], vec![10]);
         machine.execute_program();
@@ -250,7 +286,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_immediate_mode_less_than() {
         let mut machine = IntcodeMachine::new(vec![3,3,1107,-1,8,3,4,3,99], vec![3]);
         machine.execute_program();
@@ -258,10 +293,58 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_immediate_mode_greater_than() {
         let mut machine = IntcodeMachine::new(vec![3,3,1107,-1,8,3,4,3,99], vec![10]);
         machine.execute_program();
         assert_eq!(0, machine.output[0]);
+    }
+
+    #[test]
+    fn test_position_mode_jump_zero() {
+        let mut machine = IntcodeMachine::new(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], vec![0]);
+        machine.execute_program();
+        assert_eq!(0, machine.output[0]);
+    }
+
+    #[test]
+    fn test_position_mode_jump_nonzero() {
+        let mut machine = IntcodeMachine::new(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], vec![1]);
+        machine.execute_program();
+        assert_eq!(1, machine.output[0]);
+    }
+
+    #[test]
+    fn test_immediate_mode_jump_zero() {
+        let mut machine = IntcodeMachine::new(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], vec![0]);
+        machine.execute_program();
+        assert_eq!(0, machine.output[0]);
+    }
+
+    #[test]
+    fn test_immediate_mode_jump_nonzero() {
+        let mut machine = IntcodeMachine::new(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], vec![1]);
+        machine.execute_program();
+        assert_eq!(1, machine.output[0]);
+    }
+
+    #[test]
+    fn test_big_input_less_than() {
+        let mut machine = IntcodeMachine::new(vec![3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], vec![7]);
+        machine.execute_program();
+        assert_eq!(999, machine.output[0]);
+    }
+
+    #[test]
+    fn test_big_input_equal() {
+        let mut machine = IntcodeMachine::new(vec![3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], vec![8]);
+        machine.execute_program();
+        assert_eq!(1000, machine.output[0]);
+    }
+
+    #[test]
+    fn test_big_input_greater_than() {
+        let mut machine = IntcodeMachine::new(vec![3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], vec![9]);
+        machine.execute_program();
+        assert_eq!(1001, machine.output[0]);
     }
 }
