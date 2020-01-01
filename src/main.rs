@@ -3,12 +3,13 @@ pub mod day_01;
 pub mod day_02;
 pub mod day_03;
 pub mod day_04;
+pub mod day_05;
 // Other required declarations
 pub mod utils;
 // Declare itertools here with tag so its macros can be used in project
 #[macro_use] extern crate itertools;
 
 fn main() {
-    let solution = day_04::solution_part_2(String::from("./input/day_04/input.txt"));
-    println!("Solution: {}", solution);
+    let solution = day_05::solution_part_1(String::from("./input/day_05/input.txt"));
+    println!("Solution: {:?}", solution);
 }
