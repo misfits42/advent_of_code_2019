@@ -35,9 +35,10 @@ impl IntcodeMachine {
         }
     }
 
-    /// Executes the program contained within the machine.
-    pub fn execute_program(&mut self) {
-        loop { 
+    /// Executes the program contained in machine memory. Has the option of
+    /// halting after the machine executes the first output instruction.
+    pub fn execute_program_halt_on_output(&mut self, halt_on_output: bool) {
+        loop {
             // Extract program parameters for current run
             let arg = self.retrieve_from_memory(self.program_counter);
             let (opcode, mode_1, mode_2, _) = IntcodeMachine::extract_opcode_and_param_modes(arg);
@@ -65,6 +66,7 @@ impl IntcodeMachine {
                     panic!("Tried to get input from machine when empty.")
                 }
                 let input_value = self.input.pop().unwrap();
+                // For input instruction, output index in memory is taken as directly as parameter value
                 let output_index = self.retrieve_from_memory(self.program_counter + 1);
                 self.store_in_memory(input_value, output_index as usize);
                 self.program_counter += 2;
@@ -72,6 +74,10 @@ impl IntcodeMachine {
                 let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
                 self.output.push(param_1);
                 self.program_counter += 2;
+                // Check if the machine should halt after executing an output instruction
+                if halt_on_output {
+                    break;
+                }
             } else if opcode == OPCODE_JUMP_IF_TRUE {
                 let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
                 let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
@@ -112,9 +118,17 @@ impl IntcodeMachine {
                 self.program_counter += 4;
             } else {
                 // Shouldn't get here
-                panic!("Opcode not recognised [pc: {}, opcode {}]", self.program_counter, opcode);
+                panic!(
+                    "Opcode not recognised [pc: {}, opcode {}]",
+                    self.program_counter, opcode
+                );
             }
         }
+    }
+
+    /// Executes the program contained within the machine.
+    pub fn execute_program(&mut self) {
+        self.execute_program_halt_on_output(false);
     }
 
     /// Returns the value held in location 0 of the machine memory.
@@ -132,7 +146,7 @@ impl IntcodeMachine {
 
     /// Using the given argument, this function extracts the opcode and parameter
     /// modes encoded in the value.
-    /// 
+    ///
     /// Output is in form: (opcode, mode_1, mode_2, mode_3)
     fn extract_opcode_and_param_modes(arg: i32) -> (i32, i32, i32, i32) {
         let opcode = arg % 100;
@@ -163,7 +177,7 @@ impl IntcodeMachine {
     /// Retrieves a value from the machine memory, using the specified parameter mode.
     fn retrieve_param_value(&self, index: usize, param_mode: i32) -> i32 {
         if param_mode == PARAM_MODE_POSITION {
-            let value_index =  self.retrieve_from_memory(index) as usize;
+            let value_index = self.retrieve_from_memory(index) as usize;
             let value = self.retrieve_from_memory(value_index);
             return value;
         } else if param_mode == PARAM_MODE_IMMEDIATE {
@@ -210,140 +224,172 @@ mod tests {
 
     #[test]
     fn test_write_to_memory() {
-        let mut machine = IntcodeMachine::new(vec![3,3,99,0], vec![30]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 99, 0], vec![30]);
         machine.execute_program();
         assert_eq!(30, machine.memory[3]);
     }
-    
     #[test]
     fn test_write_to_output() {
-        let mut machine = IntcodeMachine::new(vec![4,2,99], vec![]);
+        let mut machine = IntcodeMachine::new(vec![4, 2, 99], vec![]);
         machine.execute_program();
         assert_eq!(99, machine.output[0]);
     }
 
     #[test]
     fn test_add() {
-        let mut machine = IntcodeMachine::new(vec![1,2,2,0,99], vec![]);
+        let mut machine = IntcodeMachine::new(vec![1, 2, 2, 0, 99], vec![]);
         machine.execute_program();
         assert_eq!(4, machine.memory[0]);
     }
 
     #[test]
     fn test_mul() {
-        let mut machine = IntcodeMachine::new(vec![2,2,4,0,99], vec![]);
+        let mut machine = IntcodeMachine::new(vec![2, 2, 4, 0, 99], vec![]);
         machine.execute_program();
         assert_eq!(396, machine.memory[0]);
     }
 
     #[test]
     fn test_immediate_mode() {
-        let mut machine = IntcodeMachine::new(vec![1102,2,4,0,99], vec![]);
+        let mut machine = IntcodeMachine::new(vec![1102, 2, 4, 0, 99], vec![]);
         machine.execute_program();
         assert_eq!(8, machine.memory[0]);
     }
 
     #[test]
     fn test_position_mode_equal() {
-        let mut machine = IntcodeMachine::new(vec![3,9,8,9,10,9,4,9,99,-1,8], vec![8]);
+        let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], vec![8]);
         machine.execute_program();
         assert_eq!(1, machine.output[0]);
     }
 
     #[test]
     fn test_position_mode_not_equal() {
-        let mut machine = IntcodeMachine::new(vec![3,9,8,9,10,9,4,9,99,-1,8], vec![10]);
+        let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], vec![10]);
         machine.execute_program();
         assert_eq!(0, machine.output[0]);
     }
 
     #[test]
     fn test_position_mode_less_than() {
-        let mut machine = IntcodeMachine::new(vec![3,9,7,9,10,9,4,9,99,-1,8], vec![3]);
+        let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], vec![3]);
         machine.execute_program();
         assert_eq!(1, machine.output[0]);
     }
 
     #[test]
     fn test_position_mode_greater_than() {
-        let mut machine = IntcodeMachine::new(vec![3,9,7,9,10,9,4,9,99,-1,8], vec![10]);
+        let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], vec![10]);
         machine.execute_program();
         assert_eq!(0, machine.output[0]);
     }
 
     #[test]
     fn test_immediate_mode_equal() {
-        let mut machine = IntcodeMachine::new(vec![3,3,1108,-1,8,3,4,3,99], vec![8]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], vec![8]);
         machine.execute_program();
         assert_eq!(1, machine.output[0]);
     }
 
     #[test]
     fn test_immediate_mode_not_equal() {
-        let mut machine = IntcodeMachine::new(vec![3,3,1108,-1,8,3,4,3,99], vec![10]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], vec![10]);
         machine.execute_program();
         assert_eq!(0, machine.output[0]);
     }
 
     #[test]
     fn test_immediate_mode_less_than() {
-        let mut machine = IntcodeMachine::new(vec![3,3,1107,-1,8,3,4,3,99], vec![3]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], vec![3]);
         machine.execute_program();
         assert_eq!(1, machine.output[0]);
     }
 
     #[test]
     fn test_immediate_mode_greater_than() {
-        let mut machine = IntcodeMachine::new(vec![3,3,1107,-1,8,3,4,3,99], vec![10]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], vec![10]);
         machine.execute_program();
         assert_eq!(0, machine.output[0]);
     }
 
     #[test]
     fn test_position_mode_jump_zero() {
-        let mut machine = IntcodeMachine::new(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], vec![0]);
+        let mut machine = IntcodeMachine::new(
+            vec![3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9],
+            vec![0],
+        );
         machine.execute_program();
         assert_eq!(0, machine.output[0]);
     }
 
     #[test]
     fn test_position_mode_jump_nonzero() {
-        let mut machine = IntcodeMachine::new(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], vec![1]);
+        let mut machine = IntcodeMachine::new(
+            vec![3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9],
+            vec![1],
+        );
         machine.execute_program();
         assert_eq!(1, machine.output[0]);
     }
 
     #[test]
     fn test_immediate_mode_jump_zero() {
-        let mut machine = IntcodeMachine::new(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], vec![0]);
+        let mut machine = IntcodeMachine::new(
+            vec![3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1],
+            vec![0],
+        );
         machine.execute_program();
         assert_eq!(0, machine.output[0]);
     }
 
     #[test]
     fn test_immediate_mode_jump_nonzero() {
-        let mut machine = IntcodeMachine::new(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], vec![1]);
+        let mut machine = IntcodeMachine::new(
+            vec![3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1],
+            vec![1],
+        );
         machine.execute_program();
         assert_eq!(1, machine.output[0]);
     }
 
     #[test]
     fn test_big_input_less_than() {
-        let mut machine = IntcodeMachine::new(vec![3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], vec![7]);
+        let mut machine = IntcodeMachine::new(
+            vec![
+                3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36,
+                98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000,
+                1, 20, 4, 20, 1105, 1, 46, 98, 99,
+            ],
+            vec![7],
+        );
         machine.execute_program();
         assert_eq!(999, machine.output[0]);
     }
 
     #[test]
     fn test_big_input_equal() {
-        let mut machine = IntcodeMachine::new(vec![3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], vec![8]);
+        let mut machine = IntcodeMachine::new(
+            vec![
+                3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36,
+                98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000,
+                1, 20, 4, 20, 1105, 1, 46, 98, 99,
+            ],
+            vec![8],
+        );
         machine.execute_program();
         assert_eq!(1000, machine.output[0]);
     }
 
     #[test]
     fn test_big_input_greater_than() {
-        let mut machine = IntcodeMachine::new(vec![3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], vec![9]);
+        let mut machine = IntcodeMachine::new(
+            vec![
+                3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36,
+                98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000,
+                1, 20, 4, 20, 1105, 1, 46, 98, 99,
+            ],
+            vec![9],
+        );
         machine.execute_program();
         assert_eq!(1001, machine.output[0]);
     }
