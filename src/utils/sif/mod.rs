@@ -10,7 +10,7 @@ const PIXEL_BLACK: u32 = 0;
 const PIXEL_WHITE: u32 = 1;
 const PIXEL_TRANS: u32 = 2;
 // Pixel renders
-const RENDER_BLACK: char = '.'; //'\u{25A0}';
+const RENDER_BLACK: char = ' '; //'\u{25A0}';
 const RENDER_WHITE: char = '#'; //'\u{25A1}';
 const RENDER_TRANS: char = ' ';
 
