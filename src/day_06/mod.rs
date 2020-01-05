@@ -151,6 +151,20 @@ fn get_number_of_parents(node_name: &String, nodes: &HashMap<String, OrbitNode>)
 mod tests {
     use super::*;
 
+    /// Test actual solution for Part 1 - to check if this has been broken.
+    #[test]
+    fn test_p1_actual_solution() {
+        let result = solution_part_1(String::from("./input/day_06/input.txt"));
+        assert_eq!(162816, result);
+    }
+
+    /// Test actual solution for Part 2 - to check if this has been broken.
+    #[test]
+    fn test_p2_actual_solution() {
+        let result = solution_part_2(String::from("./input/day_06/input.txt"));
+        assert_eq!(304, result);
+    }
+
     #[test]
     fn test_p1_example_input() {
         let result = get_number_of_orbits(String::from("./input/day_06/test/test_01.txt"));

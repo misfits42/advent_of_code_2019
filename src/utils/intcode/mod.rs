@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
-use queues::*;
+use std::collections::VecDeque;
 
 // Intcode Opcode constants
 const OPCODE_ADD: i32 = 1;
@@ -21,26 +21,26 @@ const PARAM_MODE_IMMEDIATE: i32 = 1;
 pub struct IntcodeMachine {
     program_counter: usize,
     memory: Vec<i32>,
-    input: Queue<i32>,
-    output: Queue<i32>,
+    input: VecDeque<i32>,
+    output: VecDeque<i32>,
     halted: bool,
 }
 
 impl IntcodeMachine {
     /// Creates a new instances of IntcodeMachine.
-    pub fn new(initial_memory: Vec<i32>, input: Queue<i32>) -> Self {
+    pub fn new(initial_memory: Vec<i32>, input: VecDeque<i32>) -> Self {
         Self {
             program_counter: 0,
             memory: initial_memory,
             input: input,
-            output: queue![],
+            output: VecDeque::new(),
             halted: false,
         }
     }
 
     /// Adds the given input value to the input queue of the machine.
     pub fn add_input(&mut self, input_value: i32) {
-        self.input.add(input_value).ok();
+        self.input.push_back(input_value);
     }
 
     /// Returns the current halt state of the machine.
@@ -50,7 +50,7 @@ impl IntcodeMachine {
 
     /// Clears the output queue of the machine.
     pub fn clear_output(&mut self) {
-        self.output = queue![];
+        self.output = VecDeque::new();
     }
 
     /// Executes the program contained in machine memory. Has the option of breaking program
@@ -90,17 +90,17 @@ impl IntcodeMachine {
                 self.store_in_memory(output, output_index as usize);
                 self.program_counter += 4;
             } else if opcode == OPCODE_INPUT {
-                if self.input.size() == 0 {
+                if self.input.len() == 0 {
                     panic!("Tried to get input from machine when empty.")
                 }
-                let input_value = self.input.remove().unwrap();
+                let input_value = self.input.pop_front().unwrap();
                 // Output indexes are always in position mode
                 let output_index = self.retrieve_from_memory(self.program_counter + 1);
                 self.store_in_memory(input_value, output_index as usize);
                 self.program_counter += 2;
             } else if opcode == OPCODE_OUTPUT {
                 let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                self.output.add(param_1).ok();
+                self.output.push_back(param_1);
                 self.program_counter += 2;
                 // Check if the machine should halt after executing an output instruction
                 if halt_on_output {
@@ -168,11 +168,16 @@ impl IntcodeMachine {
     }
 
     /// Returns the first value in the output queue of the machine.
-    pub fn get_output(&mut self) -> i32 {
-        if self.output.size() == 0 {
+    pub fn get_output(&self) -> i32 {
+        if self.output.len() == 0 {
             panic!("Tried to get output from IntcodeMachine with an empty output.");
         }
-        return self.output.peek().unwrap();
+        return self.output[0];
+    }
+
+    /// Returns a copy of the output queue.
+    pub fn get_output_vec(&self) -> VecDeque<i32> {
+        return self.output.clone();
     }
 
     /// Using the given argument, this function extracts the opcode and parameter
@@ -248,97 +253,97 @@ mod tests {
 
     #[test]
     fn test_halt() {
-        let mut machine = IntcodeMachine::new(vec![99], queue![0]);
+        let mut machine = IntcodeMachine::new(vec![99], VecDeque::from(vec![0]));
         machine.execute_program();
         assert_eq!(0, machine.program_counter);
     }
 
     #[test]
     fn test_write_to_memory() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 99, 0], queue![30]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 99, 0], VecDeque::from(vec![30]));
         machine.execute_program();
         assert_eq!(30, machine.memory[3]);
     }
     #[test]
     fn test_write_to_output() {
-        let mut machine = IntcodeMachine::new(vec![4, 2, 99], queue![]);
+        let mut machine = IntcodeMachine::new(vec![4, 2, 99], VecDeque::from(vec![]));
         machine.execute_program();
         assert_eq!(99, machine.get_output());
     }
 
     #[test]
     fn test_add() {
-        let mut machine = IntcodeMachine::new(vec![1, 2, 2, 0, 99], queue![]);
+        let mut machine = IntcodeMachine::new(vec![1, 2, 2, 0, 99], VecDeque::from(vec![]));
         machine.execute_program();
         assert_eq!(4, machine.memory[0]);
     }
 
     #[test]
     fn test_mul() {
-        let mut machine = IntcodeMachine::new(vec![2, 2, 4, 0, 99], queue![]);
+        let mut machine = IntcodeMachine::new(vec![2, 2, 4, 0, 99], VecDeque::from(vec![]));
         machine.execute_program();
         assert_eq!(396, machine.memory[0]);
     }
 
     #[test]
     fn test_immediate_mode() {
-        let mut machine = IntcodeMachine::new(vec![1102, 2, 4, 0, 99], queue![]);
+        let mut machine = IntcodeMachine::new(vec![1102, 2, 4, 0, 99], VecDeque::from(vec![]));
         machine.execute_program();
         assert_eq!(8, machine.memory[0]);
     }
 
     #[test]
     fn test_position_mode_equal() {
-        let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], queue![8]);
+        let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], VecDeque::from(vec![8]));
         machine.execute_program();
         assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_not_equal() {
-        let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], queue![10]);
+        let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], VecDeque::from(vec![10]));
         machine.execute_program();
         assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_less_than() {
-        let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], queue![3]);
+        let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], VecDeque::from(vec![3]));
         machine.execute_program();
         assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_greater_than() {
-        let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], queue![10]);
+        let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], VecDeque::from(vec![10]));
         machine.execute_program();
         assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_equal() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], queue![8]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], VecDeque::from(vec![8]));
         machine.execute_program();
         assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_not_equal() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], queue![10]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], VecDeque::from(vec![10]));
         machine.execute_program();
         assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_less_than() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], queue![3]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], VecDeque::from(vec![3]));
         machine.execute_program();
         assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_greater_than() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], queue![10]);
+        let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], VecDeque::from(vec![10]));
         machine.execute_program();
         assert_eq!(0, machine.get_output());
     }
@@ -347,7 +352,7 @@ mod tests {
     fn test_position_mode_jump_zero() {
         let mut machine = IntcodeMachine::new(
             vec![3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9],
-            queue![0],
+            VecDeque::from(vec![0]),
         );
         machine.execute_program();
         assert_eq!(0, machine.get_output());
@@ -357,7 +362,7 @@ mod tests {
     fn test_position_mode_jump_nonzero() {
         let mut machine = IntcodeMachine::new(
             vec![3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9],
-            queue![1],
+            VecDeque::from(vec![1]),
         );
         machine.execute_program();
         assert_eq!(1, machine.get_output());
@@ -367,7 +372,7 @@ mod tests {
     fn test_immediate_mode_jump_zero() {
         let mut machine = IntcodeMachine::new(
             vec![3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1],
-            queue![0],
+            VecDeque::from(vec![0]),
         );
         machine.execute_program();
         assert_eq!(0, machine.get_output());
@@ -377,7 +382,7 @@ mod tests {
     fn test_immediate_mode_jump_nonzero() {
         let mut machine = IntcodeMachine::new(
             vec![3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1],
-            queue![1],
+            VecDeque::from(vec![1]),
         );
         machine.execute_program();
         assert_eq!(1, machine.get_output());
@@ -391,7 +396,7 @@ mod tests {
                 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000,
                 1, 20, 4, 20, 1105, 1, 46, 98, 99,
             ],
-            queue![7],
+            VecDeque::from(vec![7]),
         );
         machine.execute_program();
         assert_eq!(999, machine.get_output());
@@ -405,7 +410,7 @@ mod tests {
                 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000,
                 1, 20, 4, 20, 1105, 1, 46, 98, 99,
             ],
-            queue![8],
+            VecDeque::from(vec![8]),
         );
         machine.execute_program();
         assert_eq!(1000, machine.get_output());
@@ -419,7 +424,7 @@ mod tests {
                 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000,
                 1, 20, 4, 20, 1105, 1, 46, 98, 99,
             ],
-            queue![9],
+            VecDeque::from(vec![9]),
         );
         machine.execute_program();
         assert_eq!(1001, machine.get_output());

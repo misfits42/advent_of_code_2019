@@ -64,45 +64,60 @@ fn calculate_fuel_req_recursive(module_mass: i32) -> i32 {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// Test actual solution for Part 1 - to check if this has been broken.
+    #[test]
+    fn test_p1_actual_solution() {
+        let result = solution_part_1(String::from("./input/day_01/input.txt"));
+        assert_eq!(3147032, result);
+    }
+
+    #[test]
+    fn test_p2_actual_solution() {
+        let result = solution_part_2(String::from("./input/day_01/input.txt"));
+        assert_eq!(4717699, result);
+    }
+
     #[test]
     fn test_p1_example_input_1() {
-        let result = super::solution_part_1(String::from("./input/day_01/test/test_01.txt"));
+        let result = solution_part_1(String::from("./input/day_01/test/test_01.txt"));
         assert_eq!(2, result);
     }
 
     #[test]
     fn test_p1_example_input_2() {
-        let result = super::solution_part_1(String::from("./input/day_01/test/test_02.txt"));
+        let result = solution_part_1(String::from("./input/day_01/test/test_02.txt"));
         assert_eq!(2, result);
     }
 
     #[test]
     fn test_p1_example_input_3() {
-        let result = super::solution_part_1(String::from("./input/day_01/test/test_03.txt"));
+        let result = solution_part_1(String::from("./input/day_01/test/test_03.txt"));
         assert_eq!(654, result);
     }
 
     #[test]
     fn test_p1_example_input_4() {
-        let result = super::solution_part_1(String::from("./input/day_01/test/test_04.txt"));
+        let result = solution_part_1(String::from("./input/day_01/test/test_04.txt"));
         assert_eq!(33583, result);
     }
 
     #[test]
     fn test_p2_example_input_2() {
-        let result = super::solution_part_2(String::from("./input/day_01/test/test_02.txt"));
+        let result = solution_part_2(String::from("./input/day_01/test/test_02.txt"));
         assert_eq!(2, result);
     }
 
     #[test]
     fn test_p2_example_input_3() {
-        let result = super::solution_part_2(String::from("./input/day_01/test/test_03.txt"));
+        let result = solution_part_2(String::from("./input/day_01/test/test_03.txt"));
         assert_eq!(966, result);
     }
 
     #[test]
     fn test_p2_example_input_4() {
-        let result = super::solution_part_2(String::from("./input/day_01/test/test_04.txt"));
+        let result = solution_part_2(String::from("./input/day_01/test/test_04.txt"));
         assert_eq!(50346, result);
     }
 }

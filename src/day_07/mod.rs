@@ -1,9 +1,7 @@
 use super::utils::fs;
 use super::utils::intcode::IntcodeMachine;
 use itertools::Itertools;
-use queues::*;
-
-
+use std::collections::VecDeque;
 
 /// Calculates the solution for Day 07 Part 1. Returned value is tuple containing maximum output
 /// value (index 0) and associated phase combinations (5 values) for amplifiers (index 1).
@@ -56,11 +54,11 @@ pub fn solution_part_2(filename: String) -> (i32, Vec<i32>) {
     let mut max_output_phases = vec![-1, -1, -1, -1, -1];
     for permu in phase_permutations {
         // Initial configuration for machines
-        let mut amp_a = IntcodeMachine::new(initial_memory.clone(), queue![permu[0], 0]);
-        let mut amp_b = IntcodeMachine::new(initial_memory.clone(), queue![permu[1]]);
-        let mut amp_c = IntcodeMachine::new(initial_memory.clone(), queue![permu[2]]);
-        let mut amp_d = IntcodeMachine::new(initial_memory.clone(), queue![permu[3]]);
-        let mut amp_e = IntcodeMachine::new(initial_memory.clone(), queue![permu[4]]);
+        let mut amp_a = IntcodeMachine::new(initial_memory.clone(), VecDeque::from(vec![permu[0], 0]));
+        let mut amp_b = IntcodeMachine::new(initial_memory.clone(), VecDeque::from(vec![permu[1]]));
+        let mut amp_c = IntcodeMachine::new(initial_memory.clone(), VecDeque::from(vec![permu[2]]));
+        let mut amp_d = IntcodeMachine::new(initial_memory.clone(), VecDeque::from(vec![permu[3]]));
+        let mut amp_e = IntcodeMachine::new(initial_memory.clone(), VecDeque::from(vec![permu[4]]));
         // Maintain the output value of Amp E in case it ends up being the output to thrusters
         let mut amp_e_output = -1;
         // Continue executing until amplifier E has halted
@@ -120,7 +118,7 @@ pub fn solution_part_2(filename: String) -> (i32, Vec<i32>) {
 /// Runs the given program in an IntcodeMachine instance, using the given phase and input as the two
 /// input values to the machine (prior to program execution).
 fn run_intcode_machine_as_amp(initial_memory: Vec<i32>, phase: i32, input_value: i32) -> i32 {
-    let amp_input = queue![phase, input_value];
+    let amp_input = VecDeque::from(vec![phase, input_value]);
     let mut amp_machine = IntcodeMachine::new(initial_memory, amp_input);
     amp_machine.execute_program();
     let amp_output = amp_machine.get_output();
@@ -130,6 +128,22 @@ fn run_intcode_machine_as_amp(initial_memory: Vec<i32>, phase: i32, input_value:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Test actual solution for Part 1 - to check if this has been broken.
+    #[test]
+    fn test_p1_actual_solution() {
+        let result = solution_part_1(String::from("./input/day_07/input.txt"));
+        assert_eq!(880726, result.0);
+        assert_eq!(vec![2,0,1,4,3], result.1);
+    }
+
+    /// Test actual solution for Part 2 - to check if this has been broken.
+    #[test]
+    fn test_p2_actual_solution() {
+        let result = solution_part_2(String::from("./input/day_07/input.txt"));
+        assert_eq!(4931744, result.0);
+        assert_eq!(vec![7,8,5,6,9], result.1);
+    }
 
     #[test]
     fn test_p1_ex_input_01() {

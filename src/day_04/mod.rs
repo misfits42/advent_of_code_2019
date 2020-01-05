@@ -130,45 +130,61 @@ fn check_password_validity_part2(pass_attempt: i32) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// Test actual solution for Part 1 - to check if this has been broken.
+    #[test]
+    fn test_p1_actual_solution() {
+        let result = solution_part_1(String::from("./input/day_04/input.txt"));
+        assert_eq!(1675, result);
+    }
+
+    /// Test actual solution for Part 2 - to check if this has been broken.
+    #[test]
+    fn test_p2_actual_solution() {
+        let result = solution_part_2(String::from("./input/day_04/input.txt"));
+        assert_eq!(1142, result);
+    }
+
     /// Checks valid password consisting of all same digit.
     #[test]
     fn test_p1_example_input_1() {
-        let result = super::check_password_validity(111111);
+        let result = check_password_validity(111111);
         assert_eq!(true, result);
     }
 
     /// Checks invalid password with reducing digits at end.
     #[test]
     fn test_p1_example_input_2() {
-        let result = super::check_password_validity(223450);
+        let result = check_password_validity(223450);
         assert_eq!(false, result);
     }
 
     /// Checks invalid password with no double digits.
     #[test]
     fn test_p1_example_input_3() {
-        let result = super::check_password_validity(123789);
+        let result = check_password_validity(123789);
         assert_eq!(false, result);
     }
 
     /// Checks valid input for Part 2 password validity checker.
     #[test]
     fn test_p2_example_input_1() {
-        let result = super::check_password_validity_part2(112233);
+        let result = check_password_validity_part2(112233);
         assert_eq!(true, result);
     }
 
     /// Checks invalid password with only steak of three digits.
     #[test]
     fn test_p2_example_input_2() {
-        let result = super::check_password_validity_part2(123444);
+        let result = check_password_validity_part2(123444);
         assert_eq!(false, result);
     }
 
     /// Checks valid password with double digit and another streak of four identical digits.
     #[test]
     fn test_p2_example_input_3() {
-        let result = super::check_password_validity_part2(111122);
+        let result = check_password_validity_part2(111122);
         assert_eq!(true, result);
     }
 }
