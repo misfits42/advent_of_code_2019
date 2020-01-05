@@ -13,6 +13,6 @@ pub mod utils;
 extern crate queues;
 
 fn main() {
-    let solution = day_07::solution_part_1(String::from("./input/day_07/input.txt"));
+    let solution = day_07::solution_part_2(String::from("./input/day_07/input.txt"));
     println!("Solution: {:?}", solution);
 }

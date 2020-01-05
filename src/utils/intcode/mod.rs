@@ -22,7 +22,8 @@ pub struct IntcodeMachine {
     program_counter: usize,
     memory: Vec<i32>,
     input: Queue<i32>,
-    output: Vec<i32>,
+    output: Queue<i32>,
+    halted: bool,
 }
 
 impl IntcodeMachine {
@@ -32,19 +33,43 @@ impl IntcodeMachine {
             program_counter: 0,
             memory: initial_memory,
             input: input,
-            output: vec![],
+            output: queue![],
+            halted: false,
         }
     }
 
-    /// Executes the program contained in machine memory. Has the option of
-    /// halting after the machine executes the first output instruction.
-    pub fn execute_program_halt_on_output(&mut self, halt_on_output: bool) {
+    /// Adds the given input value to the input queue of the machine.
+    pub fn add_input(&mut self, input_value: i32) {
+        self.input.add(input_value).ok();
+    }
+
+    /// Returns the current halt state of the machine.
+    pub fn has_halted(&self) -> bool {
+        return self.halted;
+    }
+
+    /// Clears the output queue of the machine.
+    pub fn clear_output(&mut self) {
+        self.output = queue![];
+    }
+
+    /// Executes the program contained in machine memory. Has the option of breaking program
+    /// execution after the machine executes the first output instruction.
+    /// 
+    /// If the machine has already halted (i.e. encountered a HALT opcode), this function will
+    /// immediately return.
+    pub fn execute_program_break_on_output(&mut self, halt_on_output: bool) {
+        // If machine has already halted, don't try to execute any instructions.
+        if self.has_halted() {
+            return;
+        }
         loop {
             // Extract program parameters for current run
             let arg = self.retrieve_from_memory(self.program_counter);
             let (opcode, mode_1, mode_2, _) = IntcodeMachine::extract_opcode_and_param_modes(arg);
             // Break here if HALT code is reached, just in case we are at end of program array
             if opcode == OPCODE_HALT {
+                self.halted = true;
                 break;
             }
             // Check the current opcode and perform required operation
@@ -75,7 +100,7 @@ impl IntcodeMachine {
                 self.program_counter += 2;
             } else if opcode == OPCODE_OUTPUT {
                 let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                self.output.push(param_1);
+                self.output.add(param_1).ok();
                 self.program_counter += 2;
                 // Check if the machine should halt after executing an output instruction
                 if halt_on_output {
@@ -131,7 +156,7 @@ impl IntcodeMachine {
 
     /// Executes the program contained within the machine.
     pub fn execute_program(&mut self) {
-        self.execute_program_halt_on_output(false);
+        self.execute_program_break_on_output(false);
     }
 
     /// Returns the value held in location 0 of the machine memory.
@@ -142,9 +167,12 @@ impl IntcodeMachine {
         return self.memory[0];
     }
 
-    /// Returns a copy of the output stored in the machine.
-    pub fn get_output(&self) -> Vec<i32> {
-        return self.output.clone();
+    /// Returns the first value in the output queue of the machine.
+    pub fn get_output(&mut self) -> i32 {
+        if self.output.size() == 0 {
+            panic!("Tried to get output from IntcodeMachine with an empty output.");
+        }
+        return self.output.peek().unwrap();
     }
 
     /// Using the given argument, this function extracts the opcode and parameter
@@ -235,7 +263,7 @@ mod tests {
     fn test_write_to_output() {
         let mut machine = IntcodeMachine::new(vec![4, 2, 99], queue![]);
         machine.execute_program();
-        assert_eq!(99, machine.output[0]);
+        assert_eq!(99, machine.get_output());
     }
 
     #[test]
@@ -263,56 +291,56 @@ mod tests {
     fn test_position_mode_equal() {
         let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], queue![8]);
         machine.execute_program();
-        assert_eq!(1, machine.output[0]);
+        assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_not_equal() {
         let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], queue![10]);
         machine.execute_program();
-        assert_eq!(0, machine.output[0]);
+        assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_less_than() {
         let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], queue![3]);
         machine.execute_program();
-        assert_eq!(1, machine.output[0]);
+        assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_greater_than() {
         let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], queue![10]);
         machine.execute_program();
-        assert_eq!(0, machine.output[0]);
+        assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_equal() {
         let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], queue![8]);
         machine.execute_program();
-        assert_eq!(1, machine.output[0]);
+        assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_not_equal() {
         let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], queue![10]);
         machine.execute_program();
-        assert_eq!(0, machine.output[0]);
+        assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_less_than() {
         let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], queue![3]);
         machine.execute_program();
-        assert_eq!(1, machine.output[0]);
+        assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_greater_than() {
         let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], queue![10]);
         machine.execute_program();
-        assert_eq!(0, machine.output[0]);
+        assert_eq!(0, machine.get_output());
     }
 
     #[test]
@@ -322,7 +350,7 @@ mod tests {
             queue![0],
         );
         machine.execute_program();
-        assert_eq!(0, machine.output[0]);
+        assert_eq!(0, machine.get_output());
     }
 
     #[test]
@@ -332,7 +360,7 @@ mod tests {
             queue![1],
         );
         machine.execute_program();
-        assert_eq!(1, machine.output[0]);
+        assert_eq!(1, machine.get_output());
     }
 
     #[test]
@@ -342,7 +370,7 @@ mod tests {
             queue![0],
         );
         machine.execute_program();
-        assert_eq!(0, machine.output[0]);
+        assert_eq!(0, machine.get_output());
     }
 
     #[test]
@@ -352,7 +380,7 @@ mod tests {
             queue![1],
         );
         machine.execute_program();
-        assert_eq!(1, machine.output[0]);
+        assert_eq!(1, machine.get_output());
     }
 
     #[test]
@@ -366,7 +394,7 @@ mod tests {
             queue![7],
         );
         machine.execute_program();
-        assert_eq!(999, machine.output[0]);
+        assert_eq!(999, machine.get_output());
     }
 
     #[test]
@@ -380,7 +408,7 @@ mod tests {
             queue![8],
         );
         machine.execute_program();
-        assert_eq!(1000, machine.output[0]);
+        assert_eq!(1000, machine.get_output());
     }
 
     #[test]
@@ -394,6 +422,6 @@ mod tests {
             queue![9],
         );
         machine.execute_program();
-        assert_eq!(1001, machine.output[0]);
+        assert_eq!(1001, machine.get_output());
     }
 }
