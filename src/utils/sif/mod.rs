@@ -5,15 +5,24 @@
 
 use std::collections::HashMap;
 
+// Pixel constants
+const PIXEL_BLACK: u32 = 0;
+const PIXEL_WHITE: u32 = 1;
+const PIXEL_TRANS: u32 = 2;
+// Pixel renders
+const RENDER_BLACK: char = '.'; //'\u{25A0}';
+const RENDER_WHITE: char = '#'; //'\u{25A1}';
+const RENDER_TRANS: char = ' ';
+
 /// This struct is used to represent a SIF (Space Image Format) image. Format was first introduced
 /// in AoC 2019 Day 08 Part 1.
 pub struct SifImage {
     image_width: u32,
     image_height: u32,
     num_layers: u32,
-    valid_image_loaded: bool,
     layer_digit_counts: HashMap<u32, HashMap<u32, u32>>,
     digits_map: HashMap<u32, Vec<Vec<u32>>>,
+    processed_image: Vec<Vec<u32>>,
 }
 
 impl SifImage {
@@ -22,9 +31,9 @@ impl SifImage {
             image_width: image_width,
             image_height: image_height,
             num_layers: 0,
-            valid_image_loaded: false,
             layer_digit_counts: HashMap::<u32, HashMap<u32, u32>>::new(),
             digits_map: HashMap::<u32, Vec<Vec<u32>>>::new(),
+            processed_image: vec![vec![0; image_width as usize]; image_height as usize],
         }
     }
 
@@ -84,6 +93,47 @@ impl SifImage {
                 layer_map[y_var as usize][x_var as usize] = digit_value;
             }
         }
-        self.valid_image_loaded = true;
+    }
+
+
+    pub fn process_image(&mut self) {
+        for x_var in 0..self.image_width {
+            for y_var in 0..self.image_height {
+                let mut pixel_coloured = false;
+                for layer_index in 0..self.num_layers {
+                    let pixel_value = (self.digits_map[&layer_index])[y_var as usize][x_var as usize];
+                    if pixel_value == PIXEL_BLACK {
+                        self.processed_image[y_var as usize][x_var as usize] = PIXEL_BLACK;
+                        pixel_coloured = true;
+                        break;
+                    } else if pixel_value == PIXEL_WHITE {
+                        self.processed_image[y_var as usize][x_var as usize] = PIXEL_WHITE;
+                        pixel_coloured = true;
+                        break;
+                    }
+                }
+                if !pixel_coloured {
+                    self.processed_image[y_var as usize][x_var as usize] = PIXEL_TRANS;
+                }
+            }
+        }
+    }
+
+    pub fn render_image(&self) {
+        for y_var in 0..self.image_height {
+            for x_var in 0..self.image_width {
+                let pixel_value = self.processed_image[y_var as usize][x_var as usize];
+                if pixel_value == PIXEL_BLACK {
+                    print!("{}", RENDER_BLACK);
+                } else if pixel_value == PIXEL_WHITE {
+                    print!("{}", RENDER_WHITE);
+                } else if pixel_value == PIXEL_TRANS {
+                    print!("{}", RENDER_TRANS);
+                } else {
+                    print!("#");
+                }
+            }
+            println!("");
+        }
     }
 }

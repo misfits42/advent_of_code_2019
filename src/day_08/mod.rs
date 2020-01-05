@@ -4,6 +4,7 @@ use super::utils::fs;
 use super::utils::sif::SifImage;
 use std::u32::*;
 
+/// Calculates solution for Day 08 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> u32 {
     let mut file = fs::open_file(filename);
     let mut read_buf = String::from("");
@@ -33,9 +34,22 @@ pub fn solution_part_1(filename: String) -> u32 {
     return result;
 }
 
-// pub fn solution_part_2(filename: String) -> i32 {
-//     unimplemented!();
-// }
+/// Displays solution for Day 08 Part 2 challenge. Output resembles string "GKCKH".
+pub fn solution_part_2(filename: String) {
+    let mut file = fs::open_file(filename);
+    let mut read_buf = String::from("");
+    match file.read_to_string(&mut read_buf) {
+        Err(e) => panic!("Error reading file. ({})", e.description()),
+        Ok(_) => 0,
+    };
+    read_buf = String::from(read_buf.trim());
+    // Load image
+    let mut sif_image = SifImage::new(25, 6);
+    sif_image.load_image_data(read_buf);
+    sif_image.process_image();
+    // Render image
+    sif_image.render_image();
+}
 
 #[cfg(test)]
 mod tests {
@@ -46,11 +60,5 @@ mod tests {
     fn test_p1_actual_solution() {
         let result = solution_part_1(String::from("./input/day_08/input.txt"));
         assert_eq!(1463, result);
-    }
-
-    #[test]
-    #[ignore]
-    fn test_p2_actual_solution() {
-        unimplemented!();
     }
 }
