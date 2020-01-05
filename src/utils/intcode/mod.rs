@@ -12,11 +12,14 @@ const OPCODE_JUMP_IF_TRUE: i64 = 5;
 const OPCODE_JUMP_IF_FALSE: i64 = 6;
 const OPCODE_LESS_THAN: i64 = 7;
 const OPCODE_EQUALS: i64 = 8;
+const OPCODE_ADJUST_REL_BASE: i64 = 9;
 const OPCODE_HALT: i64 = 99;
 // Parameter modes
 const PARAM_MODE_POSITION: i64 = 0;
 const PARAM_MODE_IMMEDIATE: i64 = 1;
 const PARAM_MODE_RELATIVE: i64 = 2;
+// Memory config
+const MEMORY_SIZE: usize = 100000;
 
 /// Represents the state of an Intcode Machine.
 pub struct IntcodeMachine {
@@ -25,6 +28,7 @@ pub struct IntcodeMachine {
     input: VecDeque<i64>,
     output: VecDeque<i64>,
     halted: bool,
+    relative_base: i64,
 }
 
 impl IntcodeMachine {
@@ -32,11 +36,24 @@ impl IntcodeMachine {
     pub fn new(initial_memory: Vec<i64>, input: VecDeque<i64>) -> Self {
         Self {
             program_counter: 0,
-            memory: initial_memory,
+            memory: IntcodeMachine::create_initial_memory_array(initial_memory),
             input: input,
             output: VecDeque::new(),
             halted: false,
+            relative_base: 0,
         }
+    }
+
+    fn create_initial_memory_array(initial_memory: Vec<i64>) -> Vec<i64> {
+        let mut memory = Vec::<i64>::with_capacity(MEMORY_SIZE);
+        for i in 0..MEMORY_SIZE {
+            if i < initial_memory.len() {
+                memory.push(initial_memory[i]);
+            } else {
+                memory.push(0);
+            }
+        }
+        return memory;
     }
 
     /// Adds the given input value to the input queue of the machine.
@@ -145,6 +162,10 @@ impl IntcodeMachine {
                     self.store_in_memory(0, address as usize);
                 }
                 self.program_counter += 4;
+            } else if opcode == OPCODE_ADJUST_REL_BASE {
+                let delta = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                self.relative_base += delta;
+                self.program_counter += 2;
             } else {
                 // Shouldn't get here
                 panic!(
@@ -214,11 +235,15 @@ impl IntcodeMachine {
     /// Retrieves a value from the machine memory, using the specified parameter mode.
     fn retrieve_param_value(&self, index: usize, param_mode: i64) -> i64 {
         if param_mode == PARAM_MODE_POSITION {
-            let value_index = self.retrieve_from_memory(index) as usize;
-            let value = self.retrieve_from_memory(value_index);
+            let address = self.retrieve_from_memory(index) as usize;
+            let value = self.retrieve_from_memory(address);
             return value;
         } else if param_mode == PARAM_MODE_IMMEDIATE {
             let value = self.retrieve_from_memory(index);
+            return value;
+        } else if param_mode == PARAM_MODE_RELATIVE {
+            let address = (self.relative_base + self.retrieve_from_memory(index)) as usize;
+            let value = self.retrieve_from_memory(address);
             return value;
         } else {
             panic!("BAD PARAMETER MODE");
@@ -227,7 +252,7 @@ impl IntcodeMachine {
 
     /// Extracts the intcode arguments from the given file.
     ///
-    /// File is read to string before arguments are split and converted to i32.
+    /// File is read to string before arguments are split and converted to i64.
     pub fn extract_intcode_memory_from_file(file: &mut File) -> Vec<i64> {
         // Read line from file
         let mut read_buf = String::new();
@@ -251,6 +276,27 @@ impl IntcodeMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_day_09_p1_copy_output() {
+        let mut machine = IntcodeMachine::new(vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(VecDeque::from(vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]), machine.output);
+    }
+
+    #[test]
+    fn test_day_09_p1_16digit_output() {
+        let mut machine = IntcodeMachine::new(vec![1102,34915192,34915192,7,4,7,99,0], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(1219070632396864, machine.output[0]);
+    }
+
+    #[test]
+    fn test_day_09_p1_bit_output() {
+        let mut machine = IntcodeMachine::new(vec![104,1125899906842624,99], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(1125899906842624, machine.output[0]);
+    }
 
     #[test]
     fn test_halt() {
