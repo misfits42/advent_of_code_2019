@@ -10,8 +10,9 @@ pub mod day_07;
 pub mod utils;
 // Declare itertools here with tag so its macros can be used in project
 #[macro_use] extern crate itertools;
+extern crate queues;
 
 fn main() {
-    let solution = day_07::solution_part_1(String::from("./input/day_07/test/test_02.txt"));
+    let solution = day_07::solution_part_1(String::from("./input/day_07/input.txt"));
     println!("Solution: {:?}", solution);
 }
