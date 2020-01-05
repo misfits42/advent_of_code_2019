@@ -4,7 +4,7 @@ use super::utils::intcode::IntcodeMachine;
 use std::collections::VecDeque;
 
 /// Calculates and displays the solution to Day 02 Part 1 challenge.
-pub fn solution_part_1(filename: String) -> i32 {
+pub fn solution_part_1(filename: String) -> i64 {
     // Open file
     let mut file = fs::open_file(filename);
     // Extract intcode program arguments
@@ -17,9 +17,9 @@ pub fn solution_part_1(filename: String) -> i32 {
 }
 
 /// Calculates and displays the solution to Day 02 Part 2 challenge.
-pub fn solution_part_2(filename: String) -> i32 {
+pub fn solution_part_2(filename: String) -> i64 {
     // This is the value we are looking for in position zero across the runs
-    const TARGET_LOC_ZERO: i32 = 19690720;
+    const TARGET_LOC_ZERO: i64 = 19690720;
     // Open file
     let mut file = fs::open_file(filename);
     // Extract intcode program arguments

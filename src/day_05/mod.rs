@@ -4,7 +4,7 @@ use super::utils::intcode::IntcodeMachine;
 use std::collections::VecDeque;
 
 /// Solution for Day 05 Part 1.
-pub fn solution_part_1(filename: String) -> i32 {
+pub fn solution_part_1(filename: String) -> i64 {
     let mut file = fs::open_file(filename);
     let int_args = IntcodeMachine::extract_intcode_memory_from_file(&mut file);
     let mut machine = IntcodeMachine::new(int_args, VecDeque::from(vec![1]));
@@ -14,7 +14,7 @@ pub fn solution_part_1(filename: String) -> i32 {
 }
 
 /// Solution for Day 05 Part 2.
-pub fn solution_part_2(filename: String) -> i32 {
+pub fn solution_part_2(filename: String) -> i64 {
     let mut file = fs::open_file(filename);
     let int_args = IntcodeMachine::extract_intcode_memory_from_file(&mut file);
     let mut machine = IntcodeMachine::new(int_args, VecDeque::from(vec![5]));

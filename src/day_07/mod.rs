@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 
 /// Calculates the solution for Day 07 Part 1. Returned value is tuple containing maximum output
 /// value (index 0) and associated phase combinations (5 values) for amplifiers (index 1).
-pub fn solution_part_1(filename: String) -> (i32, Vec<i32>) {
+pub fn solution_part_1(filename: String) -> (i64, Vec<i64>) {
     // Load initial memory for amplifiers from input file
     let mut file = fs::open_file(filename);
     let initial_memory = IntcodeMachine::extract_intcode_memory_from_file(&mut file);
@@ -44,7 +44,7 @@ pub fn solution_part_1(filename: String) -> (i32, Vec<i32>) {
 
 /// Calculates the solution for Day 07 Part 2. Returned value is tuple containing maximum output
 /// value (index 0) and associated phase combinations (5 values) for amplifiers (index 1).
-pub fn solution_part_2(filename: String) -> (i32, Vec<i32>) {
+pub fn solution_part_2(filename: String) -> (i64, Vec<i64>) {
     // Load initial memory for amplifiers from input file
     let mut file = fs::open_file(filename);
     let initial_memory = IntcodeMachine::extract_intcode_memory_from_file(&mut file);
@@ -117,7 +117,7 @@ pub fn solution_part_2(filename: String) -> (i32, Vec<i32>) {
 
 /// Runs the given program in an IntcodeMachine instance, using the given phase and input as the two
 /// input values to the machine (prior to program execution).
-fn run_intcode_machine_as_amp(initial_memory: Vec<i32>, phase: i32, input_value: i32) -> i32 {
+fn run_intcode_machine_as_amp(initial_memory: Vec<i64>, phase: i64, input_value: i64) -> i64 {
     let amp_input = VecDeque::from(vec![phase, input_value]);
     let mut amp_machine = IntcodeMachine::new(initial_memory, amp_input);
     amp_machine.execute_program();

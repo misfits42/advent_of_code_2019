@@ -4,31 +4,32 @@ use std::io::Read;
 use std::collections::VecDeque;
 
 // Intcode Opcode constants
-const OPCODE_ADD: i32 = 1;
-const OPCODE_MULT: i32 = 2;
-const OPCODE_INPUT: i32 = 3;
-const OPCODE_OUTPUT: i32 = 4;
-const OPCODE_JUMP_IF_TRUE: i32 = 5;
-const OPCODE_JUMP_IF_FALSE: i32 = 6;
-const OPCODE_LESS_THAN: i32 = 7;
-const OPCODE_EQUALS: i32 = 8;
-const OPCODE_HALT: i32 = 99;
+const OPCODE_ADD: i64 = 1;
+const OPCODE_MULT: i64 = 2;
+const OPCODE_INPUT: i64 = 3;
+const OPCODE_OUTPUT: i64 = 4;
+const OPCODE_JUMP_IF_TRUE: i64 = 5;
+const OPCODE_JUMP_IF_FALSE: i64 = 6;
+const OPCODE_LESS_THAN: i64 = 7;
+const OPCODE_EQUALS: i64 = 8;
+const OPCODE_HALT: i64 = 99;
 // Parameter modes
-const PARAM_MODE_POSITION: i32 = 0;
-const PARAM_MODE_IMMEDIATE: i32 = 1;
+const PARAM_MODE_POSITION: i64 = 0;
+const PARAM_MODE_IMMEDIATE: i64 = 1;
+const PARAM_MODE_RELATIVE: i64 = 2;
 
 /// Represents the state of an Intcode Machine.
 pub struct IntcodeMachine {
     program_counter: usize,
-    memory: Vec<i32>,
-    input: VecDeque<i32>,
-    output: VecDeque<i32>,
+    memory: Vec<i64>,
+    input: VecDeque<i64>,
+    output: VecDeque<i64>,
     halted: bool,
 }
 
 impl IntcodeMachine {
     /// Creates a new instances of IntcodeMachine.
-    pub fn new(initial_memory: Vec<i32>, input: VecDeque<i32>) -> Self {
+    pub fn new(initial_memory: Vec<i64>, input: VecDeque<i64>) -> Self {
         Self {
             program_counter: 0,
             memory: initial_memory,
@@ -39,7 +40,7 @@ impl IntcodeMachine {
     }
 
     /// Adds the given input value to the input queue of the machine.
-    pub fn add_input(&mut self, input_value: i32) {
+    pub fn add_input(&mut self, input_value: i64) {
         self.input.push_back(input_value);
     }
 
@@ -160,7 +161,7 @@ impl IntcodeMachine {
     }
 
     /// Returns the value held in location 0 of the machine memory.
-    pub fn get_location_zero(&self) -> i32 {
+    pub fn get_location_zero(&self) -> i64 {
         if self.memory.is_empty() {
             panic!("Machine memory is empty!");
         }
@@ -168,7 +169,7 @@ impl IntcodeMachine {
     }
 
     /// Returns the first value in the output queue of the machine.
-    pub fn get_output(&self) -> i32 {
+    pub fn get_output(&self) -> i64 {
         if self.output.len() == 0 {
             panic!("Tried to get output from IntcodeMachine with an empty output.");
         }
@@ -176,7 +177,7 @@ impl IntcodeMachine {
     }
 
     /// Returns a copy of the output queue.
-    pub fn get_output_vec(&self) -> VecDeque<i32> {
+    pub fn get_output_vec(&self) -> VecDeque<i64> {
         return self.output.clone();
     }
 
@@ -184,7 +185,7 @@ impl IntcodeMachine {
     /// modes encoded in the value.
     ///
     /// Output is in form: (opcode, mode_1, mode_2, mode_3)
-    fn extract_opcode_and_param_modes(arg: i32) -> (i32, i32, i32, i32) {
+    fn extract_opcode_and_param_modes(arg: i64) -> (i64, i64, i64, i64) {
         let opcode = arg % 100;
         let mode_1 = (arg / 100) % 10;
         let mode_2 = (arg / 1000) % 10;
@@ -194,7 +195,7 @@ impl IntcodeMachine {
 
     /// Retrieves the value in the machine memory at the given index. Panics if
     /// an out-of-bounds access is attempted (bad index).
-    fn retrieve_from_memory(&self, index: usize) -> i32 {
+    fn retrieve_from_memory(&self, index: usize) -> i64 {
         if index >= self.memory.len() {
             panic!("Bad memory index.");
         }
@@ -203,7 +204,7 @@ impl IntcodeMachine {
 
     /// Stores the given value at the specified index in the machine memory.
     /// Panics if an out-of-bounds access is attempted (bad index).
-    fn store_in_memory(&mut self, value: i32, index: usize) {
+    fn store_in_memory(&mut self, value: i64, index: usize) {
         if index >= self.memory.len() {
             panic!("Bad memory index.");
         }
@@ -211,7 +212,7 @@ impl IntcodeMachine {
     }
 
     /// Retrieves a value from the machine memory, using the specified parameter mode.
-    fn retrieve_param_value(&self, index: usize, param_mode: i32) -> i32 {
+    fn retrieve_param_value(&self, index: usize, param_mode: i64) -> i64 {
         if param_mode == PARAM_MODE_POSITION {
             let value_index = self.retrieve_from_memory(index) as usize;
             let value = self.retrieve_from_memory(value_index);
@@ -227,7 +228,7 @@ impl IntcodeMachine {
     /// Extracts the intcode arguments from the given file.
     ///
     /// File is read to string before arguments are split and converted to i32.
-    pub fn extract_intcode_memory_from_file(file: &mut File) -> Vec<i32> {
+    pub fn extract_intcode_memory_from_file(file: &mut File) -> Vec<i64> {
         // Read line from file
         let mut read_buf = String::new();
         match file.read_to_string(&mut read_buf) {
@@ -238,9 +239,9 @@ impl IntcodeMachine {
         read_buf = String::from(read_buf.trim());
         let str_args: Vec<&str> = read_buf.split(',').collect();
         // Convert string arguments into integers
-        let mut int_args = Vec::<i32>::new();
+        let mut int_args = Vec::<i64>::new();
         for str_arg in str_args {
-            let value = str_arg.parse::<i32>().unwrap();
+            let value = str_arg.parse::<i64>().unwrap();
             int_args.push(value);
         }
         return int_args;
