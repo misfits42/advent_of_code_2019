@@ -56,7 +56,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn test_p1_actual_solution() {
         let result = solution_part_1(String::from("./input/day_08/input.txt"));
         assert_eq!(1463, result);
