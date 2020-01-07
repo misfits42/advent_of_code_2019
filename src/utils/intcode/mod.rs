@@ -1,7 +1,7 @@
+use std::collections::VecDeque;
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
-use std::collections::VecDeque;
 
 // Intcode Opcode constants
 const OPCODE_ADD: i64 = 1;
@@ -44,6 +44,8 @@ impl IntcodeMachine {
         }
     }
 
+    /// Copies the given initial memory into a vector with maximum memory size of machine, and
+    /// returns the result.
     fn create_initial_memory_array(initial_memory: Vec<i64>) -> Vec<i64> {
         let mut memory = Vec::<i64>::with_capacity(MEMORY_SIZE);
         for i in 0..MEMORY_SIZE {
@@ -73,7 +75,7 @@ impl IntcodeMachine {
 
     /// Executes the program contained in machine memory. Has the option of breaking program
     /// execution after the machine executes the first output instruction.
-    /// 
+    ///
     /// If the machine has already halted (i.e. encountered a HALT opcode), this function will
     /// immediately return.
     pub fn execute_program_break_on_output(&mut self, break_on_output: bool) {
@@ -84,7 +86,8 @@ impl IntcodeMachine {
         loop {
             // Extract program parameters for current run
             let arg = self.retrieve_from_memory(self.prog_c);
-            let (opcode, mode_1, mode_2, mode_3) = IntcodeMachine::extract_opcode_and_param_modes(arg);
+            let (opcode, mode_1, mode_2, mode_3) =
+                IntcodeMachine::extract_opcode_and_param_modes(arg);
             // Break here if HALT code is reached, just in case we are at end of program array
             if opcode == OPCODE_HALT {
                 self.halted = true;
@@ -227,6 +230,9 @@ impl IntcodeMachine {
         self.memory[index] = value;
     }
 
+    /// Looks up values from the memory of the machine using the provided index and parameter mode.
+    /// The third argument indicates whether or not the calculated address value should be used to
+    /// lookup the return value or if the address should itself be returned as the result.
     fn retrieve_param_value(&self, index: usize, param_mode: i64, do_memory_lookup: bool) -> i64 {
         if param_mode == PARAM_MODE_POSITION {
             let address = self.retrieve_from_memory(index);
@@ -279,21 +285,35 @@ mod tests {
 
     #[test]
     fn test_day_09_p1_copy_output() {
-        let mut machine = IntcodeMachine::new(vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99], VecDeque::from(vec![]));
+        let mut machine = IntcodeMachine::new(
+            vec![
+                109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99,
+            ],
+            VecDeque::from(vec![]),
+        );
         machine.execute_program();
-        assert_eq!(VecDeque::from(vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]), machine.output);
+        assert_eq!(
+            VecDeque::from(vec![
+                109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99
+            ]),
+            machine.output
+        );
     }
 
     #[test]
     fn test_day_09_p1_16digit_output() {
-        let mut machine = IntcodeMachine::new(vec![1102,34915192,34915192,7,4,7,99,0], VecDeque::from(vec![]));
+        let mut machine = IntcodeMachine::new(
+            vec![1102, 34915192, 34915192, 7, 4, 7, 99, 0],
+            VecDeque::from(vec![]),
+        );
         machine.execute_program();
         assert_eq!(1219070632396864, machine.output[0]);
     }
 
     #[test]
     fn test_day_09_p1_bit_output() {
-        let mut machine = IntcodeMachine::new(vec![104,1125899906842624,99], VecDeque::from(vec![]));
+        let mut machine =
+            IntcodeMachine::new(vec![104, 1125899906842624, 99], VecDeque::from(vec![]));
         machine.execute_program();
         assert_eq!(1125899906842624, machine.output[0]);
     }
@@ -341,56 +361,80 @@ mod tests {
 
     #[test]
     fn test_position_mode_equal() {
-        let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], VecDeque::from(vec![8]));
+        let mut machine = IntcodeMachine::new(
+            vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8],
+            VecDeque::from(vec![8]),
+        );
         machine.execute_program();
         assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_not_equal() {
-        let mut machine = IntcodeMachine::new(vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], VecDeque::from(vec![10]));
+        let mut machine = IntcodeMachine::new(
+            vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8],
+            VecDeque::from(vec![10]),
+        );
         machine.execute_program();
         assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_less_than() {
-        let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], VecDeque::from(vec![3]));
+        let mut machine = IntcodeMachine::new(
+            vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8],
+            VecDeque::from(vec![3]),
+        );
         machine.execute_program();
         assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_position_mode_greater_than() {
-        let mut machine = IntcodeMachine::new(vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], VecDeque::from(vec![10]));
+        let mut machine = IntcodeMachine::new(
+            vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8],
+            VecDeque::from(vec![10]),
+        );
         machine.execute_program();
         assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_equal() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], VecDeque::from(vec![8]));
+        let mut machine = IntcodeMachine::new(
+            vec![3, 3, 1108, -1, 8, 3, 4, 3, 99],
+            VecDeque::from(vec![8]),
+        );
         machine.execute_program();
         assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_not_equal() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 1108, -1, 8, 3, 4, 3, 99], VecDeque::from(vec![10]));
+        let mut machine = IntcodeMachine::new(
+            vec![3, 3, 1108, -1, 8, 3, 4, 3, 99],
+            VecDeque::from(vec![10]),
+        );
         machine.execute_program();
         assert_eq!(0, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_less_than() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], VecDeque::from(vec![3]));
+        let mut machine = IntcodeMachine::new(
+            vec![3, 3, 1107, -1, 8, 3, 4, 3, 99],
+            VecDeque::from(vec![3]),
+        );
         machine.execute_program();
         assert_eq!(1, machine.get_output());
     }
 
     #[test]
     fn test_immediate_mode_greater_than() {
-        let mut machine = IntcodeMachine::new(vec![3, 3, 1107, -1, 8, 3, 4, 3, 99], VecDeque::from(vec![10]));
+        let mut machine = IntcodeMachine::new(
+            vec![3, 3, 1107, -1, 8, 3, 4, 3, 99],
+            VecDeque::from(vec![10]),
+        );
         machine.execute_program();
         assert_eq!(0, machine.get_output());
     }
@@ -500,35 +544,40 @@ mod tests {
 
     #[test]
     fn test_day09_p1_error203_4() {
-        let mut machine = IntcodeMachine::new(vec![109, 1, 9, 2, 204, -6, 99], VecDeque::from(vec![]));
+        let mut machine =
+            IntcodeMachine::new(vec![109, 1, 9, 2, 204, -6, 99], VecDeque::from(vec![]));
         machine.execute_program();
         assert_eq!(204, machine.get_output());
     }
 
     #[test]
     fn test_day09_p1_error203_5() {
-        let mut machine = IntcodeMachine::new(vec![109, 1, 109, 9, 204, -6, 99], VecDeque::from(vec![]));
+        let mut machine =
+            IntcodeMachine::new(vec![109, 1, 109, 9, 204, -6, 99], VecDeque::from(vec![]));
         machine.execute_program();
         assert_eq!(204, machine.get_output());
     }
 
     #[test]
     fn test_day09_p1_error203_6() {
-        let mut machine = IntcodeMachine::new(vec![109, 1, 209, -1, 204, -106, 99], VecDeque::from(vec![]));
+        let mut machine =
+            IntcodeMachine::new(vec![109, 1, 209, -1, 204, -106, 99], VecDeque::from(vec![]));
         machine.execute_program();
         assert_eq!(204, machine.get_output());
     }
 
     #[test]
     fn test_day09_p1_error203_7() {
-        let mut machine = IntcodeMachine::new(vec![109, 1, 3, 3, 204, 2, 99], VecDeque::from(vec![123]));
+        let mut machine =
+            IntcodeMachine::new(vec![109, 1, 3, 3, 204, 2, 99], VecDeque::from(vec![123]));
         machine.execute_program();
         assert_eq!(123, machine.get_output());
     }
 
     #[test]
     fn test_day09_p1_error203_8() {
-        let mut machine = IntcodeMachine::new(vec![109, 1, 203, 2, 204, 2, 99], VecDeque::from(vec![456]));
+        let mut machine =
+            IntcodeMachine::new(vec![109, 1, 203, 2, 204, 2, 99], VecDeque::from(vec![456]));
         machine.execute_program();
         assert_eq!(456, machine.get_output());
     }
