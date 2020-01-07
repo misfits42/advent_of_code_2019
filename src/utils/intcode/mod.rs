@@ -19,11 +19,11 @@ const PARAM_MODE_POSITION: i64 = 0;
 const PARAM_MODE_IMMEDIATE: i64 = 1;
 const PARAM_MODE_RELATIVE: i64 = 2;
 // Memory config
-const MEMORY_SIZE: usize = 100000;
+const MEMORY_SIZE: usize = 10000;
 
 /// Represents the state of an Intcode Machine.
 pub struct IntcodeMachine {
-    program_counter: usize,
+    prog_c: usize,
     memory: Vec<i64>,
     input: VecDeque<i64>,
     output: VecDeque<i64>,
@@ -35,7 +35,7 @@ impl IntcodeMachine {
     /// Creates a new instances of IntcodeMachine.
     pub fn new(initial_memory: Vec<i64>, input: VecDeque<i64>) -> Self {
         Self {
-            program_counter: 0,
+            prog_c: 0,
             memory: IntcodeMachine::create_initial_memory_array(initial_memory),
             input: input,
             output: VecDeque::new(),
@@ -76,15 +76,15 @@ impl IntcodeMachine {
     /// 
     /// If the machine has already halted (i.e. encountered a HALT opcode), this function will
     /// immediately return.
-    pub fn execute_program_break_on_output(&mut self, halt_on_output: bool) {
+    pub fn execute_program_break_on_output(&mut self, break_on_output: bool) {
         // If machine has already halted, don't try to execute any instructions.
         if self.has_halted() {
             return;
         }
         loop {
             // Extract program parameters for current run
-            let arg = self.retrieve_from_memory(self.program_counter);
-            let (opcode, mode_1, mode_2, _) = IntcodeMachine::extract_opcode_and_param_modes(arg);
+            let arg = self.retrieve_from_memory(self.prog_c);
+            let (opcode, mode_1, mode_2, mode_3) = IntcodeMachine::extract_opcode_and_param_modes(arg);
             // Break here if HALT code is reached, just in case we are at end of program array
             if opcode == OPCODE_HALT {
                 self.halted = true;
@@ -92,85 +92,80 @@ impl IntcodeMachine {
             }
             // Check the current opcode and perform required operation
             if opcode == OPCODE_ADD {
-                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
-                // Output indexes are always in position mode
-                let output_index = self.retrieve_from_memory(self.program_counter + 3);
+                let param_1 = self.retrieve_param_value(self.prog_c + 1, mode_1, true);
+                let param_2 = self.retrieve_param_value(self.prog_c + 2, mode_2, true);
+                let output_addr = self.retrieve_param_value(self.prog_c + 3, mode_3, false);
                 let output = param_1 + param_2;
-                self.store_in_memory(output, output_index as usize);
-                self.program_counter += 4;
+                self.store_in_memory(output, output_addr as usize);
+                self.prog_c += 4;
             } else if opcode == OPCODE_MULT {
-                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
-                // Output indexes are always in position mode
-                let output_index = self.retrieve_from_memory(self.program_counter + 3);
+                let param_1 = self.retrieve_param_value(self.prog_c + 1, mode_1, true);
+                let param_2 = self.retrieve_param_value(self.prog_c + 2, mode_2, true);
+                let output_addr = self.retrieve_param_value(self.prog_c + 3, mode_3, false);
                 let output = param_1 * param_2;
-                self.store_in_memory(output, output_index as usize);
-                self.program_counter += 4;
+                self.store_in_memory(output, output_addr as usize);
+                self.prog_c += 4;
             } else if opcode == OPCODE_INPUT {
                 if self.input.len() == 0 {
-                    panic!("Tried to get input from machine when empty.")
+                    panic!("Tried to get input from machine when empty.");
                 }
                 let input_value = self.input.pop_front().unwrap();
-                // Output indexes are always in position mode
-                let output_index = self.retrieve_from_memory(self.program_counter + 1);
-                self.store_in_memory(input_value, output_index as usize);
-                self.program_counter += 2;
+                let output_addr = self.retrieve_param_value(self.prog_c + 1, mode_1, false);
+                self.store_in_memory(input_value, output_addr as usize);
+                self.prog_c += 2;
             } else if opcode == OPCODE_OUTPUT {
-                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                let param_1 = self.retrieve_param_value(self.prog_c + 1, mode_1, true);
                 self.output.push_back(param_1);
-                self.program_counter += 2;
-                // Check if the machine should halt after executing an output instruction
-                if halt_on_output {
+                self.prog_c += 2;
+                // Check if the machine should break after executing an output instruction
+                if break_on_output {
                     break;
                 }
             } else if opcode == OPCODE_JUMP_IF_TRUE {
-                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
+                let param_1 = self.retrieve_param_value(self.prog_c + 1, mode_1, true);
+                let param_2 = self.retrieve_param_value(self.prog_c + 2, mode_2, true);
                 if param_1 != 0 {
-                    self.program_counter = param_2 as usize;
+                    self.prog_c = param_2 as usize;
                 } else {
-                    self.program_counter += 3;
+                    self.prog_c += 3;
                 }
             } else if opcode == OPCODE_JUMP_IF_FALSE {
-                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
+                let param_1 = self.retrieve_param_value(self.prog_c + 1, mode_1, true);
+                let param_2 = self.retrieve_param_value(self.prog_c + 2, mode_2, true);
                 if param_1 == 0 {
-                    self.program_counter = param_2 as usize;
+                    self.prog_c = param_2 as usize;
                 } else {
-                    self.program_counter += 3;
+                    self.prog_c += 3;
                 }
             } else if opcode == OPCODE_LESS_THAN {
-                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
-                // Third parameter is address - don't need to use parameter modes
-                let address = self.retrieve_from_memory(self.program_counter + 3);
+                let param_1 = self.retrieve_param_value(self.prog_c + 1, mode_1, true);
+                let param_2 = self.retrieve_param_value(self.prog_c + 2, mode_2, true);
+                let output_addr = self.retrieve_param_value(self.prog_c + 3, mode_3, false);
                 if param_1 < param_2 {
-                    self.store_in_memory(1, address as usize);
+                    self.store_in_memory(1, output_addr as usize);
                 } else {
-                    self.store_in_memory(0, address as usize);
+                    self.store_in_memory(0, output_addr as usize);
                 }
-                self.program_counter += 4;
+                self.prog_c += 4;
             } else if opcode == OPCODE_EQUALS {
-                let param_1 = self.retrieve_param_value(self.program_counter + 1, mode_1);
-                let param_2 = self.retrieve_param_value(self.program_counter + 2, mode_2);
-                // Third parameter is address - don't need to use parameter modes
-                let address = self.retrieve_from_memory(self.program_counter + 3);
+                let param_1 = self.retrieve_param_value(self.prog_c + 1, mode_1, true);
+                let param_2 = self.retrieve_param_value(self.prog_c + 2, mode_2, true);
+                let output_addr = self.retrieve_param_value(self.prog_c + 3, mode_3, false);
                 if param_1 == param_2 {
-                    self.store_in_memory(1, address as usize);
+                    self.store_in_memory(1, output_addr as usize);
                 } else {
-                    self.store_in_memory(0, address as usize);
+                    self.store_in_memory(0, output_addr as usize);
                 }
-                self.program_counter += 4;
+                self.prog_c += 4;
             } else if opcode == OPCODE_ADJUST_REL_BASE {
-                let delta = self.retrieve_param_value(self.program_counter + 1, mode_1);
+                let delta = self.retrieve_param_value(self.prog_c + 1, mode_1, true);
                 self.relative_base += delta;
-                self.program_counter += 2;
+                self.prog_c += 2;
             } else {
                 // Shouldn't get here
                 panic!(
                     "Opcode not recognised [pc: {}, opcode {}]",
-                    self.program_counter, opcode
+                    self.prog_c, opcode
                 );
             }
         }
@@ -232,19 +227,24 @@ impl IntcodeMachine {
         self.memory[index] = value;
     }
 
-    /// Retrieves a value from the machine memory, using the specified parameter mode.
-    fn retrieve_param_value(&self, index: usize, param_mode: i64) -> i64 {
+    fn retrieve_param_value(&self, index: usize, param_mode: i64, do_memory_lookup: bool) -> i64 {
         if param_mode == PARAM_MODE_POSITION {
-            let address = self.retrieve_from_memory(index) as usize;
-            let value = self.retrieve_from_memory(address);
-            return value;
+            let address = self.retrieve_from_memory(index);
+            if !do_memory_lookup {
+                return address;
+            } else {
+                return self.retrieve_from_memory(address as usize);
+            }
         } else if param_mode == PARAM_MODE_IMMEDIATE {
             let value = self.retrieve_from_memory(index);
             return value;
         } else if param_mode == PARAM_MODE_RELATIVE {
-            let address = (self.relative_base + self.retrieve_from_memory(index)) as usize;
-            let value = self.retrieve_from_memory(address);
-            return value;
+            let address = self.relative_base + self.retrieve_from_memory(index);
+            if !do_memory_lookup {
+                return address;
+            } else {
+                return self.retrieve_from_memory(address as usize);
+            }
         } else {
             panic!("BAD PARAMETER MODE");
         }
@@ -302,7 +302,7 @@ mod tests {
     fn test_halt() {
         let mut machine = IntcodeMachine::new(vec![99], VecDeque::from(vec![0]));
         machine.execute_program();
-        assert_eq!(0, machine.program_counter);
+        assert_eq!(0, machine.prog_c);
     }
 
     #[test]
@@ -475,5 +475,61 @@ mod tests {
         );
         machine.execute_program();
         assert_eq!(1001, machine.get_output());
+    }
+
+    #[test]
+    fn test_day09_p1_error203_1() {
+        let mut machine = IntcodeMachine::new(vec![109, -1, 4, 1, 99], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(-1, machine.get_output());
+    }
+
+    #[test]
+    fn test_day09_p1_error203_2() {
+        let mut machine = IntcodeMachine::new(vec![109, -1, 104, 1, 99], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(1, machine.get_output());
+    }
+
+    #[test]
+    fn test_day09_p1_error203_3() {
+        let mut machine = IntcodeMachine::new(vec![109, -1, 204, 1, 99], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(109, machine.get_output());
+    }
+
+    #[test]
+    fn test_day09_p1_error203_4() {
+        let mut machine = IntcodeMachine::new(vec![109, 1, 9, 2, 204, -6, 99], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(204, machine.get_output());
+    }
+
+    #[test]
+    fn test_day09_p1_error203_5() {
+        let mut machine = IntcodeMachine::new(vec![109, 1, 109, 9, 204, -6, 99], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(204, machine.get_output());
+    }
+
+    #[test]
+    fn test_day09_p1_error203_6() {
+        let mut machine = IntcodeMachine::new(vec![109, 1, 209, -1, 204, -106, 99], VecDeque::from(vec![]));
+        machine.execute_program();
+        assert_eq!(204, machine.get_output());
+    }
+
+    #[test]
+    fn test_day09_p1_error203_7() {
+        let mut machine = IntcodeMachine::new(vec![109, 1, 3, 3, 204, 2, 99], VecDeque::from(vec![123]));
+        machine.execute_program();
+        assert_eq!(123, machine.get_output());
+    }
+
+    #[test]
+    fn test_day09_p1_error203_8() {
+        let mut machine = IntcodeMachine::new(vec![109, 1, 203, 2, 204, 2, 99], VecDeque::from(vec![456]));
+        machine.execute_program();
+        assert_eq!(456, machine.get_output());
     }
 }
