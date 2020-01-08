@@ -8,12 +8,15 @@ pub mod day_06;
 pub mod day_07;
 pub mod day_08;
 pub mod day_09;
+pub mod day_10;
 // Other required declarations
 pub mod utils;
 // Declare itertools here with tag so its macros can be used in project
 #[macro_use] extern crate itertools;
+extern crate euclid;
+extern crate num;
 
 fn main() {
-    let solution = day_09::solution_part_2(String::from("./input/day_09/input.txt"));
+    let solution = day_10::solution_part_1(String::from("./input/day_10/input.txt"));
     println!("Solution: {:?}", solution);
 }
