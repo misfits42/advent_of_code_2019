@@ -17,6 +17,6 @@ extern crate euclid;
 extern crate num;
 
 fn main() {
-    let solution = day_10::solution_part_1(String::from("./input/day_10/input.txt"));
+    let solution = day_10::solution_part_2(String::from("./input/day_10/input.txt"));
     println!("Solution: {:?}", solution);
 }

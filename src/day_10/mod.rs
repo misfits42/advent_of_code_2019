@@ -8,6 +8,18 @@ pub fn solution_part_1(filename: String) -> (i64, euclid::Point2D<i64, UnknownUn
     return get_optimal_location(filename);
 }
 
+/// Calculates the solution for Day 10 Part 2.
+pub fn solution_part_2(filename: String) -> i64 {
+    let mut file = fs::open_file(filename);
+    let raw_input = io::read_file_to_string(&mut file);
+    let asteroid_map = AsteroidMap::new(raw_input);
+    let result = asteroid_map.find_optimal_station_location();
+    let vapourise_order = asteroid_map.get_vapourise_order(result.1);
+    // Calculate the result for the 200'th asteroid to be vapourised.
+    let lucky_200 = vapourise_order[199];
+    return lucky_200.x * 100 + lucky_200.y;
+}
+
 fn get_optimal_location(filename: String) -> (i64, euclid::Point2D<i64, UnknownUnit>) {
     let mut file = fs::open_file(filename);
     let raw_input = io::read_file_to_string(&mut file);
@@ -58,5 +70,19 @@ mod tests {
         assert_eq!(210, result.0);
         assert_eq!(11, result.1.x);
         assert_eq!(13, result.1.y);
+    }
+
+    #[test]
+    fn test_p1_actual_solution() {
+        let result = get_optimal_location(String::from("./input/day_10/input.txt"));
+        assert_eq!(299, result.0);
+        assert_eq!(26, result.1.x);
+        assert_eq!(29, result.1.y);
+    }
+
+    #[test]
+    fn test_p2_actual_solution() {
+        let result = solution_part_2(String::from("./input/day_10/input.txt"));
+        assert_eq!(1419, result);
     }
 }
