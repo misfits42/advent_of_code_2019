@@ -28,18 +28,26 @@ pub struct IntcodeMachine {
     input: VecDeque<i64>,
     output: VecDeque<i64>,
     halted: bool,
+    awaiting_input: bool,
     relative_base: i64,
 }
 
 impl IntcodeMachine {
     /// Creates a new instances of IntcodeMachine.
-    pub fn new(initial_memory: Vec<i64>, input: VecDeque<i64>) -> Self {
+    pub fn new(initial_memory: Vec<i64>, initial_input: VecDeque<i64>) -> Self {
         Self {
             prog_c: 0,
             memory: IntcodeMachine::create_initial_memory_array(initial_memory),
-            input: input,
+            input: initial_input.clone(),
             output: VecDeque::new(),
             halted: false,
+            awaiting_input: {
+                if initial_input.is_empty() {
+                    true
+                } else {
+                    false
+                }
+            },
             relative_base: 0,
         }
     }
@@ -61,6 +69,10 @@ impl IntcodeMachine {
     /// Adds the given input value to the input queue of the machine.
     pub fn add_input(&mut self, input_value: i64) {
         self.input.push_back(input_value);
+        // Machine has received input, so it is no longer awaiting input
+        if self.awaiting_input {
+            self.awaiting_input = false;
+        }
     }
 
     /// Returns the current halt state of the machine.
@@ -79,8 +91,8 @@ impl IntcodeMachine {
     /// If the machine has already halted (i.e. encountered a HALT opcode), this function will
     /// immediately return.
     pub fn execute_program_break_on_output(&mut self, break_on_output: bool) {
-        // If machine has already halted, don't try to execute any instructions.
-        if self.has_halted() {
+        // If machine has halted or is awaiting input, break progream execution
+        if self.halted || self.awaiting_input {
             return;
         }
         loop {
@@ -109,8 +121,10 @@ impl IntcodeMachine {
                 self.store_in_memory(output, output_addr as usize);
                 self.prog_c += 4;
             } else if opcode == OPCODE_INPUT {
+                // If we have no input to read, set awaiting input flag and break execution
                 if self.input.len() == 0 {
-                    panic!("Tried to get input from machine when empty.");
+                    self.awaiting_input = true;
+                    break;
                 }
                 let input_value = self.input.pop_front().unwrap();
                 let output_addr = self.retrieve_param_value(self.prog_c + 1, mode_1, false);
@@ -193,6 +207,19 @@ impl IntcodeMachine {
             panic!("Tried to get output from IntcodeMachine with an empty output.");
         }
         return self.output[0];
+    }
+
+    /// Returns the first output value and removes it from the queue.
+    pub fn get_output_and_remove(&mut self) -> i64 {
+        if self.output.len() == 0 {
+            panic!("Tried to get output from IntcodeMachine with an empty output.");
+        }
+        return self.output.pop_front().unwrap();
+    }
+
+    /// Checks if the output queue of the machine is empty or not.
+    pub fn is_output_empty(&self) -> bool {
+        return self.output.is_empty();
     }
 
     /// Returns a copy of the output queue.
