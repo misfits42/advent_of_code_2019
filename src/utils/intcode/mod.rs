@@ -41,13 +41,7 @@ impl IntcodeMachine {
             input: initial_input.clone(),
             output: VecDeque::new(),
             halted: false,
-            awaiting_input: {
-                if initial_input.is_empty() {
-                    true
-                } else {
-                    false
-                }
-            },
+            awaiting_input: false,
             relative_base: 0,
         }
     }
