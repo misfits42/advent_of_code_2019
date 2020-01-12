@@ -16,8 +16,9 @@ pub mod utils;
 #[macro_use] extern crate itertools;
 extern crate euclid;
 extern crate num;
+extern crate png;
 
 fn main() {
-    let solution = day_11::solution_part_1(String::from("./input/day_11/input.txt"));
+    let solution = day_11::solution_part_2(String::from("./input/day_11/input.txt"));
     println!("Solution: {:?}", solution);
 }

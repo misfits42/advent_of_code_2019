@@ -1,8 +1,9 @@
 # Advent of Code 2019
 
-This repo contains my solutions for Advent of Code 2019 (https://adventofcode.com/2019). I've used Rust as my language of choice for this project.
+This repo contains my solutions for Advent of Code 2019 (<https://adventofcode.com/2019>). I've used Rust as my language of choice for this project.
 
 ## Current Progress
+
 * Day 1:  (#)(#)
 * Day 2:  (#)(#)
 * Day 3:  (#)(#)
@@ -13,7 +14,7 @@ This repo contains my solutions for Advent of Code 2019 (https://adventofcode.co
 * Day 8:  (#)(#)
 * Day 9:  (#)(#)
 * Day 10: (#)(#)
-* Day 11: (#)( )
+* Day 11: (#)(#)
 * Day 12: ( )( )
 * Day 13: ( )( )
 * Day 14: ( )( )
