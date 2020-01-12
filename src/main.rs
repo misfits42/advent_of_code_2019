@@ -9,6 +9,7 @@ pub mod day_07;
 pub mod day_08;
 pub mod day_09;
 pub mod day_10;
+pub mod day_11;
 // Other required declarations
 pub mod utils;
 // Declare itertools here with tag so its macros can be used in project
@@ -17,6 +18,6 @@ extern crate euclid;
 extern crate num;
 
 fn main() {
-    let solution = day_10::solution_part_2(String::from("./input/day_10/input.txt"));
+    let solution = day_11::solution_part_1(String::from("./input/day_11/input.txt"));
     println!("Solution: {:?}", solution);
 }
