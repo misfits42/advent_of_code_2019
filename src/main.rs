@@ -21,6 +21,6 @@ extern crate png;
 extern crate regex;
 
 fn main() {
-    let solution = day_12::solution_part_1(String::from("./input/day_12/input.txt"));
+    let solution = day_12::solution_part_2(String::from("./input/day_12/input.txt"));
     println!("Solution: {:?}", solution);
 }

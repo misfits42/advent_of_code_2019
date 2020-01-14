@@ -1,10 +1,14 @@
 use super::utils::fs;
 use super::utils::io;
+use itertools::Itertools;
 use regex::Regex;
 use std::fmt;
-use itertools::Itertools;
+use std::collections::HashSet;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hash;
+use std::hash::Hasher;
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 struct SpaceObject {
     pos_x: i32,
     pos_y: i32,
@@ -16,7 +20,11 @@ struct SpaceObject {
 
 impl fmt::Debug for SpaceObject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "pos=<x= {}, y= {}, z={}>, vel=<x={}, y={}, z={}>", self.pos_x, self.pos_y, self.pos_z, self.vel_x, self.vel_y, self.vel_z)
+        write!(
+            f,
+            "pos=<x= {}, y= {}, z={}>, vel=<x={}, y={}, z={}>",
+            self.pos_x, self.pos_y, self.pos_z, self.vel_x, self.vel_y, self.vel_z
+        )
     }
 }
 
@@ -80,6 +88,31 @@ pub fn solution_part_1(filename: String) -> i32 {
     return calculate_total_energy(&mut moons, 1000);
 }
 
+/// Calculates solution for Day 12 Part 2 challenge.
+pub fn solution_part_2(filename: String) -> u64 {
+    let mut moons = get_moon_data(filename);
+    let mut steps: u64 = 0;
+    let mut observed_hashes = HashSet::<u64>::new();
+    loop {
+        do_moon_step(&mut moons);
+        steps += 1;
+        if steps % 10000 == 0 {
+            println!("Conducted {} steps...", steps);
+        }
+        // Calculate hashes of moons
+        let mut hasher = DefaultHasher::new();
+        for moon_index in 0..4 {
+            moons[moon_index].hash(&mut hasher);
+        }
+        let hash_output = hasher.finish();
+        if observed_hashes.contains(&hash_output) {
+            return steps;
+        }
+        observed_hashes.insert(hash_output);
+    }
+
+}
+
 /// Parses the given file and returns a vector containing the moons specified in file.
 fn get_moon_data(filename: String) -> Vec<SpaceObject> {
     // Open file and initialise space objects
@@ -98,27 +131,32 @@ fn get_moon_data(filename: String) -> Vec<SpaceObject> {
     return moons;
 }
 
+fn do_moon_step(moons: &mut Vec<SpaceObject>) {
+    // Initialise velocity delta structs with all zeroes
+    let mut velocity_delta: Vec<VelocityDelta> = vec![];
+    for _ in 0..4 {
+        velocity_delta.push(VelocityDelta::new());
+    }
+    // For each pair of moons, calculate required velocity deltas
+    let moon_pairs = (0..4).combinations(2);
+    for pair in moon_pairs {
+        let moon_a_index = pair[0];
+        let moon_b_index = pair[1];
+        let (moon_a_delta, moon_b_delta) =
+            calculate_velocity_deltas(moons[moon_a_index], moons[moon_b_index]);
+        increment_velocity_delta(&mut velocity_delta[moon_a_index], moon_a_delta);
+        increment_velocity_delta(&mut velocity_delta[moon_b_index], moon_b_delta);
+    }
+    // Apply velocity deltas to moon velocities
+    for moon_index in 0..4 {
+        moons[moon_index].add_velocity(velocity_delta[moon_index]);
+        moons[moon_index].move_moon();
+    }
+}
+
 fn calculate_total_energy(moons: &mut Vec<SpaceObject>, steps: u32) -> i32 {
     for _ in 0..steps {
-        // Initialise velocity delta structs with all zeroes
-        let mut velocity_delta: Vec<VelocityDelta> = vec![];
-        for _ in 0..4 {
-            velocity_delta.push(VelocityDelta::new());
-        }
-        // For each pair of moons, calculate required velocity deltas
-        let moon_pairs = (0..4).combinations(2);
-        for pair in moon_pairs {
-            let moon_a_index = pair[0];
-            let moon_b_index = pair[1];
-            let (moon_a_delta, moon_b_delta) = calculate_velocity_deltas(moons[moon_a_index], moons[moon_b_index]);
-            increment_velocity_delta(&mut velocity_delta[moon_a_index], moon_a_delta);
-            increment_velocity_delta(&mut velocity_delta[moon_b_index], moon_b_delta);
-        }
-        // Apply velocity deltas to moon velocities
-        for moon_index in 0..4 {
-            moons[moon_index].add_velocity(velocity_delta[moon_index]);
-            moons[moon_index].move_moon();
-        }
+        do_moon_step(moons);
     }
     // Calculate total energy of system (all four moons together) after 1000 steps
     let mut system_total_energy = 0;
@@ -134,7 +172,10 @@ fn increment_velocity_delta(original: &mut VelocityDelta, delta: VelocityDelta) 
     original.delta_z += delta.delta_z;
 }
 
-fn calculate_velocity_deltas(moon_a: SpaceObject, moon_b: SpaceObject) -> (VelocityDelta, VelocityDelta) {
+fn calculate_velocity_deltas(
+    moon_a: SpaceObject,
+    moon_b: SpaceObject,
+) -> (VelocityDelta, VelocityDelta) {
     let mut moon_a_vel_delta = VelocityDelta::new();
     let mut moon_b_vel_delta = VelocityDelta::new();
     // Look at x-axis
