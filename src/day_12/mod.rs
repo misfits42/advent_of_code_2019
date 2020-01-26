@@ -4,9 +4,12 @@ use itertools::Itertools;
 use regex::Regex;
 use std::fmt;
 use std::collections::HashSet;
+use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
+use primes;
+use std::u32;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 struct SpaceObject {
@@ -38,6 +41,27 @@ impl SpaceObject {
             vel_y: 0,
             vel_z: 0,
         }
+    }
+
+    /// Calculates the hash of the SpaceObject's position and velocity in the x-axis.
+    pub fn calculate_x_hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        format!("{},{}", self.pos_x, self.vel_x).hash(&mut hasher);
+        return hasher.finish();
+    }
+
+    /// Calculates the hash of the SPaceObject's position and velcity in the y-axis.
+    pub fn calculate_y_hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        format!("{},{}", self.pos_y, self.vel_y).hash(&mut hasher);
+        return hasher.finish();
+    }
+
+    /// Calculates the hash of the SpaceObject's position and velocity in the z-axis.
+    pub fn calculate_z_hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        format!("{},{}", self.pos_z, self.vel_z).hash(&mut hasher);
+        return hasher.finish();
     }
 
     pub fn get_potential_energy(&self) -> i32 {
@@ -89,7 +113,116 @@ pub fn solution_part_1(filename: String) -> i32 {
 }
 
 /// Calculates solution for Day 12 Part 2 challenge.
-pub fn solution_part_2(filename: String) -> u64 {
+pub fn solution_part_2(filename: String) -> u128 {
+    let mut moons = get_moon_data(filename);
+    let mut steps: u64 = 0;
+    // We are looking at each axis individually, so need to keep hashes for each axis
+    let mut x_hashes = HashSet::<u64>::new();
+    let mut y_hashes = HashSet::<u64>::new();
+    let mut z_hashes = HashSet::<u64>::new();
+    let mut x_repeat_steps: u64 = 0;
+    let mut y_repeat_steps: u64 = 0;
+    let mut z_repeat_steps: u64 = 0;
+    loop {
+        do_moon_step(&mut moons);
+        steps += 1;
+        if steps % 10000 == 0 {
+            println!("Conducted {} steps...", steps);
+        }
+        // Calculate x-axis hashes
+        let mut x_hasher = DefaultHasher::new();
+        let mut y_hasher = DefaultHasher::new();
+        let mut z_hasher = DefaultHasher::new();
+        for moon_index in 0..4 {
+            moons[moon_index].calculate_x_hash().hash(&mut x_hasher);
+            moons[moon_index].calculate_y_hash().hash(&mut y_hasher);
+            moons[moon_index].calculate_z_hash().hash(&mut z_hasher);
+        }
+        let x_hash = x_hasher.finish();
+        let y_hash = y_hasher.finish();
+        let z_hash = z_hasher.finish();
+        // Check x hash
+        if x_hashes.contains(&x_hash) && x_repeat_steps == 0 {
+            x_repeat_steps = steps;
+        } else {
+            x_hashes.insert(x_hash);
+        }
+        // Check y hash
+        if y_hashes.contains(&y_hash) && y_repeat_steps == 0 {
+            y_repeat_steps = steps;
+        } else {
+            y_hashes.insert(y_hash);
+        }
+        // Check z hash
+        if z_hashes.contains(&z_hash) && z_repeat_steps == 0 {
+            z_repeat_steps = steps;
+        } else {
+            z_hashes.insert(z_hash);
+        }
+        // Check if we have seen a repeat on all axes
+        if x_repeat_steps > 0 && y_repeat_steps > 0 && z_repeat_steps > 0 {
+            break;
+        }
+    }
+    // Now we need to calculate the least common multiple for the repeated step counts
+    let x_prime_factors = primes::factors(x_repeat_steps);
+    let y_prime_factors = primes::factors(y_repeat_steps);
+    let z_prime_factors = primes::factors(z_repeat_steps);
+    // Count prime factors
+    let mut x_prime_factor_count = HashMap::<u64, u64>::new();
+    let mut y_prime_factor_count = HashMap::<u64, u64>::new();
+    let mut z_prime_factor_count = HashMap::<u64, u64>::new();
+    for x_prime in x_prime_factors {
+        *x_prime_factor_count.entry(x_prime).or_insert(0) += 1;
+    }
+    for y_prime in y_prime_factors {
+        *y_prime_factor_count.entry(y_prime).or_insert(0) += 1;
+    }
+    for z_prime in z_prime_factors {
+        *z_prime_factor_count.entry(z_prime).or_insert(0) += 1;
+    }
+    // Work out most times each prime factor occurs for one of the numbers
+    let mut result_count = HashMap::<u64, u64>::new();
+    for (k, v) in x_prime_factor_count.into_iter() {
+        let mut max_count = v;
+        if *y_prime_factor_count.get(&k).unwrap_or(&0) > max_count {
+            max_count = *y_prime_factor_count.get(&k).unwrap();
+        }
+        if *z_prime_factor_count.get(&k).unwrap_or(&0) > max_count {
+            max_count = *z_prime_factor_count.get(&k).unwrap();
+        }
+        result_count.insert(k, max_count);
+    }
+    for (k, v) in y_prime_factor_count.into_iter() {
+        if result_count.contains_key(&k) {
+            continue;
+        }
+        let mut max_count = v;
+        if *z_prime_factor_count.get(&k).unwrap_or(&0) > max_count {
+            max_count = *z_prime_factor_count.get(&k).unwrap();
+        }
+        result_count.insert(k, max_count);
+    }
+    for (k, v) in z_prime_factor_count.into_iter() {
+        if result_count.contains_key(&k) {
+            continue;
+        }
+        result_count.insert(k, v);
+    }
+    // Calculate the LCM by multiplying all prime factors repeated by number of times it appears
+    // most as a prime factor for one of the subject values.
+    let mut lcm: u128 = 1;
+    for (k, v) in result_count.into_iter() {
+        if v > u32::max_value() as u64 {
+            panic!("Too many instances of prime factor to fit into u64.");
+        }
+        lcm *= k.pow(v as u32) as u128;
+    }
+    return lcm;
+}
+
+/// A brute-force method to solve Day 12 Part 2 that isn't terribly efficient.
+pub fn soln_p2_brute_force(filename: String) -> u64 {
     let mut moons = get_moon_data(filename);
     let mut steps: u64 = 0;
     let mut observed_hashes = HashSet::<u64>::new();
@@ -110,7 +243,6 @@ pub fn solution_part_2(filename: String) -> u64 {
         }
         observed_hashes.insert(hash_output);
     }
-
 }
 
 /// Parses the given file and returns a vector containing the moons specified in file.
