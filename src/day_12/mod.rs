@@ -9,16 +9,15 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
 use primes;
-use std::u32;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 struct SpaceObject {
-    pos_x: i32,
-    pos_y: i32,
-    pos_z: i32,
-    vel_x: i32,
-    vel_y: i32,
-    vel_z: i32,
+    pos_x: i64,
+    pos_y: i64,
+    pos_z: i64,
+    vel_x: i64,
+    vel_y: i64,
+    vel_z: i64,
 }
 
 impl fmt::Debug for SpaceObject {
@@ -32,7 +31,7 @@ impl fmt::Debug for SpaceObject {
 }
 
 impl SpaceObject {
-    pub fn new(init_pos_x: i32, init_pos_y: i32, init_pos_z: i32) -> Self {
+    pub fn new(init_pos_x: i64, init_pos_y: i64, init_pos_z: i64) -> Self {
         Self {
             pos_x: init_pos_x,
             pos_y: init_pos_y,
@@ -41,6 +40,18 @@ impl SpaceObject {
             vel_y: 0,
             vel_z: 0,
         }
+    }
+
+    pub fn get_x_pair(&self) -> (i64, i64) {
+        (self.pos_x, self.vel_x)
+    }
+
+    pub fn get_y_pair(&self) -> (i64, i64) {
+        (self.pos_y, self.vel_y)
+    }
+
+    pub fn get_z_pair(&self) -> (i64, i64) {
+        (self.pos_z, self.vel_z)
     }
 
     /// Calculates the hash of the SpaceObject's position and velocity in the x-axis.
@@ -64,15 +75,15 @@ impl SpaceObject {
         return hasher.finish();
     }
 
-    pub fn get_potential_energy(&self) -> i32 {
+    pub fn get_potential_energy(&self) -> i64 {
         return self.pos_x.abs() + self.pos_y.abs() + self.pos_z.abs();
     }
 
-    pub fn get_kinetic_energy(&self) -> i32 {
+    pub fn get_kinetic_energy(&self) -> i64 {
         return self.vel_x.abs() + self.vel_y.abs() + self.vel_z.abs();
     }
 
-    pub fn get_total_energy(&self) -> i32 {
+    pub fn get_total_energy(&self) -> i64 {
         return self.get_potential_energy() * self.get_kinetic_energy();
     }
 
@@ -91,9 +102,9 @@ impl SpaceObject {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 struct VelocityDelta {
-    delta_x: i32,
-    delta_y: i32,
-    delta_z: i32,
+    delta_x: i64,
+    delta_y: i64,
+    delta_z: i64,
 }
 
 impl VelocityDelta {
@@ -107,7 +118,7 @@ impl VelocityDelta {
 }
 
 /// Calculates solution to Day 12 Part 1 challenge.
-pub fn solution_part_1(filename: String) -> i32 {
+pub fn solution_part_1(filename: String) -> i64 {
     let mut moons = get_moon_data(filename);
     return calculate_total_energy(&mut moons, 1000);
 }
@@ -133,14 +144,25 @@ pub fn solution_part_2(filename: String) -> u128 {
         let mut x_hasher = DefaultHasher::new();
         let mut y_hasher = DefaultHasher::new();
         let mut z_hasher = DefaultHasher::new();
-        for moon_index in 0..4 {
-            moons[moon_index].calculate_x_hash().hash(&mut x_hasher);
-            moons[moon_index].calculate_y_hash().hash(&mut y_hasher);
-            moons[moon_index].calculate_z_hash().hash(&mut z_hasher);
+        let mut x_moon_string = String::new();
+        let mut y_moon_string = String::new();
+        let mut z_moon_string = String::new();
+        for i in 0..4 {
+            // x_moon_string.push_str(&format!("{:?}", moons[i].get_x_pair()));
+            // y_moon_string.push_str(&format!("{:?}", moons[i].get_y_pair()));
+            // z_moon_string.push_str(&format!("{:?}", moons[i].get_z_pair()));
+
+            moons[i].calculate_x_hash().hash(&mut x_hasher);
+            moons[i].calculate_y_hash().hash(&mut y_hasher);
+            moons[i].calculate_z_hash().hash(&mut z_hasher);
         }
+        x_moon_string.hash(&mut x_hasher);
+        y_moon_string.hash(&mut y_hasher);
+        z_moon_string.hash(&mut z_hasher);
         let x_hash = x_hasher.finish();
         let y_hash = y_hasher.finish();
         let z_hash = z_hasher.finish();
+
         // Check x hash
         if x_hashes.contains(&x_hash) && x_repeat_steps == 0 {
             x_repeat_steps = steps;
@@ -159,6 +181,7 @@ pub fn solution_part_2(filename: String) -> u128 {
         } else {
             z_hashes.insert(z_hash);
         }
+
         // Check if we have seen a repeat on all axes
         if x_repeat_steps > 0 && y_repeat_steps > 0 && z_repeat_steps > 0 {
             break;
@@ -286,7 +309,7 @@ fn do_moon_step(moons: &mut Vec<SpaceObject>) {
     }
 }
 
-fn calculate_total_energy(moons: &mut Vec<SpaceObject>, steps: u32) -> i32 {
+fn calculate_total_energy(moons: &mut Vec<SpaceObject>, steps: u64) -> i64 {
     for _ in 0..steps {
         do_moon_step(moons);
     }
