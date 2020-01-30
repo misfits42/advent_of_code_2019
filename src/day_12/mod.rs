@@ -239,33 +239,6 @@ pub fn solution_part_2(filename: String) -> u128 {
     return lcm;
 }
 
-/// A brute-force method to solve Day 12 Part 2 that isn't terribly efficient.
-pub fn soln_p2_brute_force(filename: String) -> u64 {
-    let mut moons = get_moon_data(filename);
-    let mut steps: u64 = 0;
-    let mut observed_hashes = HashSet::<u64>::new();
-    loop {
-        do_moon_step(&mut moons);
-        steps += 1;
-        if steps % 10000 == 0 {
-            println!("Conducted {} steps...", steps);
-        }
-        // Calculate hashes of moons
-        let mut hasher = DefaultHasher::new();
-        for moon_index in 0..4 {
-            moons[moon_index].hash(&mut hasher);
-        }
-        let hash_output = hasher.finish();
-        if observed_hashes.contains(&hash_output) {
-            for i in 0..4 {
-                println!("{:?}", moons[i]);
-            }
-            return steps;
-        }
-        observed_hashes.insert(hash_output);
-    }
-}
-
 /// Parses the given file and returns a vector containing the moons specified in file.
 fn get_moon_data(filename: String) -> Vec<SpaceObject> {
     // Open file and initialise space objects
@@ -374,5 +347,29 @@ mod tests {
         let mut moons = get_moon_data(String::from("./input/day_12/test/test_02.txt"));
         let total_energy = calculate_total_energy(&mut moons, 100);
         assert_eq!(1940, total_energy);
+    }
+
+    #[test]
+    fn test_p1_solution() {
+        let result = solution_part_1(String::from("./input/day_12/input.txt"));
+        assert_eq!(7179, result);
+    }
+
+    #[test]
+    fn test_p2_ex_input_01() {
+        let result = solution_part_2(String::from("./input/day_12/test/test_01.txt"));
+        assert_eq!(2772, result);
+    }
+
+    #[test]
+    fn test_p2_ex_input_02() {
+        let result = solution_part_2(String::from("./input/day_12/test/test_02.txt"));
+        assert_eq!(4686774924, result);
+    }
+
+    #[test]
+    fn test_p2_solution() {
+        let result = solution_part_2(String::from("./input/day_12/input.txt"));
+        assert_eq!(428576638953552, result);
     }
 }
