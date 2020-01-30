@@ -23,6 +23,6 @@ extern crate primes;
 extern crate sha2;
 
 fn main() {
-    let solution = day_12::solution_part_2(String::from("./input/day_12/test/test_01.txt"));
+    let solution = day_12::solution_part_2(String::from("./input/day_12/input.txt"));
     println!("Solution: {:?}", solution);
 }

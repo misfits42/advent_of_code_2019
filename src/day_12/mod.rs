@@ -42,47 +42,42 @@ impl SpaceObject {
         }
     }
 
-    pub fn get_x_pair(&self) -> (i64, i64) {
-        (self.pos_x, self.vel_x)
-    }
-
-    pub fn get_y_pair(&self) -> (i64, i64) {
-        (self.pos_y, self.vel_y)
-    }
-
-    pub fn get_z_pair(&self) -> (i64, i64) {
-        (self.pos_z, self.vel_z)
-    }
-
     /// Calculates the hash of the SpaceObject's position and velocity in the x-axis.
     pub fn calculate_x_hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        format!("{},{}", self.pos_x, self.vel_x).hash(&mut hasher);
+        self.pos_x.hash(&mut hasher);
+        self.vel_x.hash(&mut hasher);
         return hasher.finish();
     }
 
-    /// Calculates the hash of the SPaceObject's position and velcity in the y-axis.
+    /// Calculates the hash of the SpaceObject's position and velocity in the y-axis.
     pub fn calculate_y_hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        format!("{},{}", self.pos_y, self.vel_y).hash(&mut hasher);
+        self.pos_y.hash(&mut hasher);
+        self.vel_y.hash(&mut hasher);
         return hasher.finish();
     }
 
     /// Calculates the hash of the SpaceObject's position and velocity in the z-axis.
     pub fn calculate_z_hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        format!("{},{}", self.pos_z, self.vel_z).hash(&mut hasher);
+        self.pos_z.hash(&mut hasher);
+        self.vel_z.hash(&mut hasher);
         return hasher.finish();
     }
 
+    /// Calculates the SpaceObject's potential energy using the formula introduced in 2019 Day 12.
     pub fn get_potential_energy(&self) -> i64 {
         return self.pos_x.abs() + self.pos_y.abs() + self.pos_z.abs();
     }
 
+    /// Calculates the SpaceObject's kinetic energy using the formula introduced in 2019 Day 12.
     pub fn get_kinetic_energy(&self) -> i64 {
         return self.vel_x.abs() + self.vel_y.abs() + self.vel_z.abs();
     }
 
+    /// Calculates the total energy of the SpaceObject as the sum of its potential and kinetic
+    /// energy.
     pub fn get_total_energy(&self) -> i64 {
         return self.get_potential_energy() * self.get_kinetic_energy();
     }
@@ -123,6 +118,24 @@ pub fn solution_part_1(filename: String) -> i64 {
     return calculate_total_energy(&mut moons, 1000);
 }
 
+/// Calculates the hashes for the state of the x-, y- and z-axes for all the moons taken together.
+/// 
+/// Returned tuple: (x_hash, y_hash, z_hash)
+fn get_moon_xyz_hashes(moons: &Vec<SpaceObject>) -> (u64, u64, u64) {
+    let mut x_hasher = DefaultHasher::new();
+    let mut y_hasher = DefaultHasher::new();
+    let mut z_hasher = DefaultHasher::new();
+    for i in 0..4 {
+        moons[i].calculate_x_hash().hash(&mut x_hasher);
+        moons[i].calculate_y_hash().hash(&mut y_hasher);
+        moons[i].calculate_z_hash().hash(&mut z_hasher);
+    }
+    let x_hash = x_hasher.finish();
+    let y_hash = y_hasher.finish();
+    let z_hash = z_hasher.finish();
+    return (x_hash, y_hash, z_hash);
+}
+
 /// Calculates solution for Day 12 Part 2 challenge.
 pub fn solution_part_2(filename: String) -> u128 {
     let mut moons = get_moon_data(filename);
@@ -134,35 +147,18 @@ pub fn solution_part_2(filename: String) -> u128 {
     let mut x_repeat_steps: u64 = 0;
     let mut y_repeat_steps: u64 = 0;
     let mut z_repeat_steps: u64 = 0;
+    // Calculate and store hashes for initial state
+    let (x_hash_init, y_hash_init, z_hash_init) = get_moon_xyz_hashes(&moons);
+    x_hashes.insert(x_hash_init);
+    y_hashes.insert(y_hash_init);
+    z_hashes.insert(z_hash_init);
     loop {
         do_moon_step(&mut moons);
         steps += 1;
         if steps % 10000 == 0 {
             println!("Conducted {} steps...", steps);
         }
-        // Calculate x-axis hashes
-        let mut x_hasher = DefaultHasher::new();
-        let mut y_hasher = DefaultHasher::new();
-        let mut z_hasher = DefaultHasher::new();
-        let mut x_moon_string = String::new();
-        let mut y_moon_string = String::new();
-        let mut z_moon_string = String::new();
-        for i in 0..4 {
-            // x_moon_string.push_str(&format!("{:?}", moons[i].get_x_pair()));
-            // y_moon_string.push_str(&format!("{:?}", moons[i].get_y_pair()));
-            // z_moon_string.push_str(&format!("{:?}", moons[i].get_z_pair()));
-
-            moons[i].calculate_x_hash().hash(&mut x_hasher);
-            moons[i].calculate_y_hash().hash(&mut y_hasher);
-            moons[i].calculate_z_hash().hash(&mut z_hasher);
-        }
-        x_moon_string.hash(&mut x_hasher);
-        y_moon_string.hash(&mut y_hasher);
-        z_moon_string.hash(&mut z_hasher);
-        let x_hash = x_hasher.finish();
-        let y_hash = y_hasher.finish();
-        let z_hash = z_hasher.finish();
-
+        let (x_hash, y_hash, z_hash) = get_moon_xyz_hashes(&moons);
         // Check x hash
         if x_hashes.contains(&x_hash) && x_repeat_steps == 0 {
             x_repeat_steps = steps;
@@ -181,7 +177,6 @@ pub fn solution_part_2(filename: String) -> u128 {
         } else {
             z_hashes.insert(z_hash);
         }
-
         // Check if we have seen a repeat on all axes
         if x_repeat_steps > 0 && y_repeat_steps > 0 && z_repeat_steps > 0 {
             break;
@@ -262,6 +257,9 @@ pub fn soln_p2_brute_force(filename: String) -> u64 {
         }
         let hash_output = hasher.finish();
         if observed_hashes.contains(&hash_output) {
+            for i in 0..4 {
+                println!("{:?}", moons[i]);
+            }
             return steps;
         }
         observed_hashes.insert(hash_output);
