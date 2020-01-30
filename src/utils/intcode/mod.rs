@@ -75,6 +75,11 @@ impl IntcodeMachine {
         return self.halted;
     }
 
+    /// Returns whether or not the machine is awaiting for an input value.
+    pub fn is_awaiting_input(&self) -> bool {
+        return self.awaiting_input;
+    }
+
     /// Clears the output queue of the machine.
     pub fn clear_output(&mut self) {
         self.output = VecDeque::new();
