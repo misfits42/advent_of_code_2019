@@ -1,14 +1,13 @@
 use super::utils::fs;
 use super::utils::io;
+use super::utils::math;
 use itertools::Itertools;
 use regex::Regex;
 use std::fmt;
 use std::collections::HashSet;
-use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
-use primes;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 struct SpaceObject {
@@ -182,60 +181,8 @@ pub fn solution_part_2(filename: String) -> u128 {
             break;
         }
     }
-    // Now we need to calculate the least common multiple for the repeated step counts
-    let x_prime_factors = primes::factors(x_repeat_steps);
-    let y_prime_factors = primes::factors(y_repeat_steps);
-    let z_prime_factors = primes::factors(z_repeat_steps);
-    // Count prime factors
-    let mut x_prime_factor_count = HashMap::<u64, u64>::new();
-    let mut y_prime_factor_count = HashMap::<u64, u64>::new();
-    let mut z_prime_factor_count = HashMap::<u64, u64>::new();
-    for x_prime in x_prime_factors {
-        *x_prime_factor_count.entry(x_prime).or_insert(0) += 1;
-    }
-    for y_prime in y_prime_factors {
-        *y_prime_factor_count.entry(y_prime).or_insert(0) += 1;
-    }
-    for z_prime in z_prime_factors {
-        *z_prime_factor_count.entry(z_prime).or_insert(0) += 1;
-    }
-    // Work out most times each prime factor occurs for one of the numbers
-    let mut result_count = HashMap::<u64, u64>::new();
-    for (k, v) in x_prime_factor_count.into_iter() {
-        let mut max_count = v;
-        if *y_prime_factor_count.get(&k).unwrap_or(&0) > max_count {
-            max_count = *y_prime_factor_count.get(&k).unwrap();
-        }
-        if *z_prime_factor_count.get(&k).unwrap_or(&0) > max_count {
-            max_count = *z_prime_factor_count.get(&k).unwrap();
-        }
-        result_count.insert(k, max_count);
-    }
-    for (k, v) in y_prime_factor_count.into_iter() {
-        if result_count.contains_key(&k) {
-            continue;
-        }
-        let mut max_count = v;
-        if *z_prime_factor_count.get(&k).unwrap_or(&0) > max_count {
-            max_count = *z_prime_factor_count.get(&k).unwrap();
-        }
-        result_count.insert(k, max_count);
-    }
-    for (k, v) in z_prime_factor_count.into_iter() {
-        if result_count.contains_key(&k) {
-            continue;
-        }
-        result_count.insert(k, v);
-    }
-    // Calculate the LCM by multiplying all prime factors repeated by number of times it appears
-    // most as a prime factor for one of the subject values.
-    let mut lcm: u128 = 1;
-    for (k, v) in result_count.into_iter() {
-        if v > u32::max_value() as u64 {
-            panic!("Too many instances of prime factor to fit into u64.");
-        }
-        lcm *= k.pow(v as u32) as u128;
-    }
+    let repeat_steps = vec![x_repeat_steps, y_repeat_steps, z_repeat_steps];
+    let lcm = math::calculate_lcm(repeat_steps);
     return lcm;
 }
 
