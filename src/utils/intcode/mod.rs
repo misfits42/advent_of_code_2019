@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
+use super::fs;
 
 // Intcode Opcode constants
 const OPCODE_ADD: i64 = 1;
@@ -275,6 +276,12 @@ impl IntcodeMachine {
         } else {
             panic!("BAD PARAMETER MODE");
         }
+    }
+
+    /// Extracts the intcode memory from the file specified by the given filename.
+    pub fn extract_intcode_memory_from_filename(filename: String) -> Vec<i64> {
+        let mut file = fs::open_file(filename);
+        return IntcodeMachine::extract_intcode_memory_from_file(&mut file);
     }
 
     /// Extracts the intcode arguments from the given file.

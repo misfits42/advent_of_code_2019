@@ -11,6 +11,7 @@ pub mod day_09;
 pub mod day_10;
 pub mod day_11;
 pub mod day_12;
+pub mod day_13;
 // Other required declarations
 pub mod utils;
 // Declare itertools here with tag so its macros can be used in project
@@ -20,9 +21,8 @@ extern crate num;
 extern crate png;
 extern crate regex;
 extern crate primes;
-extern crate sha2;
 
 fn main() {
-    let solution = day_12::solution_part_2(String::from("./input/day_12/input.txt"));
+    let solution = day_13::solution_part_1(String::from("./input/day_13/input.txt"));
     println!("Solution: {:?}", solution);
 }
