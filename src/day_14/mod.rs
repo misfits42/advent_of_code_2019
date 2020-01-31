@@ -18,7 +18,7 @@ struct ChemicalReaction {
 pub fn solution_part_1(filename: String) -> u64 {
     let mut file = fs::open_file(filename);
     let raw_input = io::read_file_to_string(&mut file);
-    let mut reactions = HashMap::<String, Vec<ChemicalReaction>>::new();
+    let mut reactions = HashMap::<String, ChemicalReaction>::new();
     // Read lines into chemical reactions
     for line in raw_input.lines() {
         let line = line.trim();
@@ -43,7 +43,11 @@ pub fn solution_part_1(filename: String) -> u64 {
             lhs_materials.push(material);
         }
         // Get the material type and quantity from RHS
-        let rhs_split: Vec<String> = side_split[1].trim().split(" ").map(|x| String::from(x)).collect();
+        let rhs_split: Vec<String> = side_split[1]
+            .trim()
+            .split(" ")
+            .map(|x| String::from(x))
+            .collect();
         if rhs_split.len() != 2 {
             panic!("Bad material format on RHS.");
         }
@@ -52,58 +56,106 @@ pub fn solution_part_1(filename: String) -> u64 {
             name: rhs_split[1].clone(),
             quantity,
         };
+        // Create the chemical reaction
         let reaction = ChemicalReaction {
             input: lhs_materials.clone(),
-            output: output_material,
+            output: output_material.clone(),
         };
-        // Add reaction
-        if !reactions.contains_key(&rhs_split[1]) {
-            reactions.insert(rhs_split[1].clone(), vec![reaction]);
-        } else {
-            reactions.get_mut(&rhs_split[1]).unwrap().push(reaction);
+        // Check if there is more than one reaction that can produce the same output material
+        let result = reactions.insert(rhs_split[1].clone(), reaction);
+        match result {
+            None => (),
+            _ => panic!(
+                "More than one formula to produce chemical: {}",
+                output_material.name
+            ),
         }
     }
-
     // Get fuel reaction and do initial checks
-    let fuel_reaction = reactions.get("FUEL").unwrap()[0].clone();
-    let min_ore_needed = get_ore_needed_for_reaction(&reactions.clone(), fuel_reaction, HashMap::new());
-
-    // for (_, v) in reactions.into_iter() {
-    //     println!("{:?}", v);
-    // }
-
+    let fuel_reaction = reactions.get("FUEL").unwrap().clone();
+    let (min_ore_needed, _) =
+        get_ore_needed_for_reaction(&reactions.clone(), fuel_reaction, &mut HashMap::new());
     return min_ore_needed;
 }
 
-fn get_ore_needed_for_reaction(reactions_record: &HashMap::<String, Vec<ChemicalReaction>>, target_reaction: ChemicalReaction, remainders: HashMap<String, u64>) -> u64 {
+/// Calculates how much ORE is needed to produce the output of the given target reaction.
+/// 
+/// Extra amounts of materials remaining after each reaction is run are tracked between runs. This
+/// is done so that this extra amount can be used if enough is held, rather than making more of the
+/// material from raw ORE.
+fn get_ore_needed_for_reaction(
+    reactions_record: &HashMap<String, ChemicalReaction>,
+    target_reaction: ChemicalReaction,
+    remainders: &HashMap<String, u64>,
+) -> (u64, HashMap<String, u64>) {
     if target_reaction.input.len() == 1 && target_reaction.input[0].name == "ORE" {
-        return target_reaction.input[0].quantity;
+        return (target_reaction.input[0].quantity, remainders.clone());
     }
-
     let mut total_ore_needed = 0;
     let mut remainders = remainders.clone();
+
     for input_material in target_reaction.input {
-        // Get reactions that can produce the required material and calculate how many times needed
-        let possible_reactions = reactions_record.get(&input_material.name).unwrap().clone();
-        let mut min_ore_needed = u64::max_value();
-        for poss in possible_reactions {
-            let desired_qty = input_material.quantity - remainders.get(&input_material.name).unwrap_or(&0);
-            let reps = (desired_qty + poss.output.quantity/2) / poss.output.quantity;
-            if !remainders.contains_key(&poss.output.name) {
-                remainders.insert(poss.output.name.clone(), reps * poss.output.quantity);
-            } else {
-                *remainders.get_mut(&poss.output.name).unwrap() += reps * poss.output.quantity;
-            }
-            // Subtract the amount used by the current target reaction
-            *remainders.get_mut(&poss.output.name).unwrap() -= desired_qty;
-            // Repeat the reaction and find how much ore is needed
-            let ore_needed = reps * get_ore_needed_for_reaction(&reactions_record, poss.clone(), remainders.clone());
-            if ore_needed < min_ore_needed {
-                min_ore_needed = ore_needed;
-            }
+        let input_reaction = reactions_record.get(&input_material.name).unwrap();
+        if !remainders.contains_key(&input_material.name) {
+            remainders.insert(input_material.name.clone(), 0);
         }
-        total_ore_needed += min_ore_needed;
+        let stored_amount = *remainders.get(&input_material.name).unwrap();
+        if stored_amount > input_material.quantity {
+            *remainders.get_mut(&input_material.name).unwrap() -= input_material.quantity;
+        } else {
+            // Work out how much of input material we need to produce based on amount already held
+            let desired_qty =
+                input_material.quantity - remainders.get(&input_material.name).unwrap();
+            let reps = (desired_qty as f64 / input_reaction.output.quantity as f64).ceil() as u64;
+            // Update remaining amount stored based on amount due to be produced
+            let produced_amount = reps * input_reaction.output.quantity;
+            let amount_remaining = stored_amount + produced_amount - input_material.quantity;
+            *remainders.get_mut(&input_material.name).unwrap() = amount_remaining;
+            let mut ore_needed = 0;
+            // Run repeats so remainders can be updated on each run - in case more than enough is
+            // produced from a previous run. WE NEED MINIMUM ORE!!!
+            for _ in 0..reps {
+                let (ore, new_remainders) = get_ore_needed_for_reaction(&reactions_record, input_reaction.clone(), &mut remainders);
+                ore_needed += ore;
+                remainders = new_remainders.clone();
+            }
+            total_ore_needed += ore_needed;
+        }
+    }
+    return (total_ore_needed, remainders.clone());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn test_p1_example_01() {
+        let result = solution_part_1(String::from("./input/day_14/test/test_01.txt"));
+        assert_eq!(31, result);
     }
 
-    return total_ore_needed;
+    #[test]
+    pub fn test_p1_example_02() {
+        let result = solution_part_1(String::from("./input/day_14/test/test_02.txt"));
+        assert_eq!(165, result);
+    }
+
+    #[test]
+    pub fn test_p1_example_03() {
+        let result = solution_part_1(String::from("./input/day_14/test/test_03.txt"));
+        assert_eq!(13312, result);
+    }
+
+    #[test]
+    pub fn test_p1_example_04() {
+        let result = solution_part_1(String::from("./input/day_14/test/test_04.txt"));
+        assert_eq!(180697, result);
+    }
+
+    #[test]
+    pub fn test_p1_example_05() {
+        let result = solution_part_1(String::from("./input/day_14/test/test_05.txt"));
+        assert_eq!(2210736, result);
+    }
 }
