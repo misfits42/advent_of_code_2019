@@ -16,6 +16,26 @@ struct ChemicalReaction {
 
 /// Calculates solution for Day 14 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> u64 {
+    return get_min_ore_needed_one_fuel(filename);
+}
+
+fn get_min_ore_needed_one_fuel(filename: String) -> u64 {
+    let reactions = get_reactions_from_filename(filename);
+    // Get fuel reaction and do initial checks
+    let fuel_reaction = reactions.get("FUEL").unwrap().clone();
+    let (min_ore_needed, _) =
+        get_ore_needed_for_reaction(&reactions.clone(), fuel_reaction, &mut HashMap::new());
+    return min_ore_needed;
+}
+
+/// Calculates solution for Day 14 Part 2 challenge.
+pub fn solution_part_2(filename: String) -> u64 {
+    let min_ore_needed = get_min_ore_needed_one_fuel(filename);
+    let fuel_made = 10e12 as u64 / min_ore_needed;
+    return fuel_made;
+}
+
+fn get_reactions_from_filename(filename: String) -> HashMap<String, ChemicalReaction> {
     let mut file = fs::open_file(filename);
     let raw_input = io::read_file_to_string(&mut file);
     let mut reactions = HashMap::<String, ChemicalReaction>::new();
@@ -71,11 +91,7 @@ pub fn solution_part_1(filename: String) -> u64 {
             ),
         }
     }
-    // Get fuel reaction and do initial checks
-    let fuel_reaction = reactions.get("FUEL").unwrap().clone();
-    let (min_ore_needed, _) =
-        get_ore_needed_for_reaction(&reactions.clone(), fuel_reaction, &mut HashMap::new());
-    return min_ore_needed;
+    return reactions;
 }
 
 /// Calculates how much ORE is needed to produce the output of the given target reaction.
@@ -157,5 +173,11 @@ mod tests {
     pub fn test_p1_example_05() {
         let result = solution_part_1(String::from("./input/day_14/test/test_05.txt"));
         assert_eq!(2210736, result);
+    }
+
+    #[test]
+    pub fn test_p1_solution() {
+        let result = solution_part_1(String::from("./input/day_14/input.txt"));
+        assert_eq!(278404, result);
     }
 }
