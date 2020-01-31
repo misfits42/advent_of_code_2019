@@ -30,8 +30,22 @@ fn get_min_ore_needed_one_fuel(filename: String) -> u64 {
 
 /// Calculates solution for Day 14 Part 2 challenge.
 pub fn solution_part_2(filename: String) -> u64 {
-    let min_ore_needed = get_min_ore_needed_one_fuel(filename);
-    let fuel_made = 10e12 as u64 / min_ore_needed;
+    let mut ore_remaining = 10e12 as u64;
+    let mut fuel_made = 0;
+    let mut remainders = HashMap::<String, u64>::new();
+    let reactions = get_reactions_from_filename(filename.clone());
+    let fuel_reaction = reactions.get("FUEL").unwrap();
+    let min_ore_needed = get_min_ore_needed_one_fuel(filename.clone());
+    while ore_remaining > min_ore_needed {
+        let (_, new_remainders) =
+            get_ore_needed_for_reaction(&reactions, fuel_reaction.clone(), &mut remainders);
+        remainders = new_remainders.clone();
+        fuel_made += 1;
+        ore_remaining -= min_ore_needed;
+        if fuel_made % 10 == 0 {
+            println!("Fuel made: {}", fuel_made);
+        }
+    }
     return fuel_made;
 }
 
@@ -95,7 +109,7 @@ fn get_reactions_from_filename(filename: String) -> HashMap<String, ChemicalReac
 }
 
 /// Calculates how much ORE is needed to produce the output of the given target reaction.
-/// 
+///
 /// Extra amounts of materials remaining after each reaction is run are tracked between runs. This
 /// is done so that this extra amount can be used if enough is held, rather than making more of the
 /// material from raw ORE.
@@ -131,7 +145,11 @@ fn get_ore_needed_for_reaction(
             // Run repeats so remainders can be updated on each run - in case more than enough is
             // produced from a previous run. WE NEED MINIMUM ORE!!!
             for _ in 0..reps {
-                let (ore, new_remainders) = get_ore_needed_for_reaction(&reactions_record, input_reaction.clone(), &mut remainders);
+                let (ore, new_remainders) = get_ore_needed_for_reaction(
+                    &reactions_record,
+                    input_reaction.clone(),
+                    &mut remainders,
+                );
                 ore_needed += ore;
                 remainders = new_remainders.clone();
             }
@@ -179,5 +197,23 @@ mod tests {
     pub fn test_p1_solution() {
         let result = solution_part_1(String::from("./input/day_14/input.txt"));
         assert_eq!(278404, result);
+    }
+
+    #[test]
+    pub fn test_p2_example_03() {
+        let result = solution_part_2(String::from("./input/day_14/test/test_03.txt"));
+        assert_eq!(82892753, result);
+    }
+
+    #[test]
+    pub fn test_p2_example_04() {
+        let result = solution_part_2(String::from("./input/day_14/test/test_04.txt"));
+        assert_eq!(5586022, result);
+    }
+
+    #[test]
+    pub fn test_p2_example_05() {
+        let result = solution_part_2(String::from("./input/day_14/test/test_05.txt"));
+        assert_eq!(460664, result);
     }
 }
