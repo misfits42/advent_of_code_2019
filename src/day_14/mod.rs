@@ -64,9 +64,46 @@ pub fn solution_part_1(filename: String) -> u64 {
         }
     }
 
-    for (_, v) in reactions.into_iter() {
-        println!("{:?}", v);
+    // Get fuel reaction and do initial checks
+    let fuel_reaction = reactions.get("FUEL").unwrap()[0].clone();
+    let min_ore_needed = get_ore_needed_for_reaction(&reactions.clone(), fuel_reaction, HashMap::new());
+
+    // for (_, v) in reactions.into_iter() {
+    //     println!("{:?}", v);
+    // }
+
+    return min_ore_needed;
+}
+
+fn get_ore_needed_for_reaction(reactions_record: &HashMap::<String, Vec<ChemicalReaction>>, target_reaction: ChemicalReaction, remainders: HashMap<String, u64>) -> u64 {
+    if target_reaction.input.len() == 1 && target_reaction.input[0].name == "ORE" {
+        return target_reaction.input[0].quantity;
     }
 
-    unimplemented!();
+    let mut total_ore_needed = 0;
+    let mut remainders = remainders.clone();
+    for input_material in target_reaction.input {
+        // Get reactions that can produce the required material and calculate how many times needed
+        let possible_reactions = reactions_record.get(&input_material.name).unwrap().clone();
+        let mut min_ore_needed = u64::max_value();
+        for poss in possible_reactions {
+            let desired_qty = input_material.quantity - remainders.get(&input_material.name).unwrap_or(&0);
+            let reps = (desired_qty + poss.output.quantity/2) / poss.output.quantity;
+            if !remainders.contains_key(&poss.output.name) {
+                remainders.insert(poss.output.name.clone(), reps * poss.output.quantity);
+            } else {
+                *remainders.get_mut(&poss.output.name).unwrap() += reps * poss.output.quantity;
+            }
+            // Subtract the amount used by the current target reaction
+            *remainders.get_mut(&poss.output.name).unwrap() -= desired_qty;
+            // Repeat the reaction and find how much ore is needed
+            let ore_needed = reps * get_ore_needed_for_reaction(&reactions_record, poss.clone(), remainders.clone());
+            if ore_needed < min_ore_needed {
+                min_ore_needed = ore_needed;
+            }
+        }
+        total_ore_needed += min_ore_needed;
+    }
+
+    return total_ore_needed;
 }
