@@ -69,5 +69,4 @@ pub fn solution_part_1(filename: String) -> u64 {
     }
 
     unimplemented!();
-    return 0;
 }
