@@ -1,6 +1,7 @@
 use super::utils::fs;
 use super::utils::io;
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Material {
@@ -39,68 +40,27 @@ fn multiply_reaction(reaction: &ChemicalReaction, multiplier: u64) -> ChemicalRe
 
 /// Calculates solution for Day 14 Part 2 challenge.
 pub fn solution_part_2(filename: String) -> u64 {
-    let ore_target = 1e12 as u64; // 1 TRILLION ORE!!!
+    let mut ore_remaining = 1e12 as u64;
+    let mut fuel_made = 0;
+    let mut remainders = HashMap::<String, u64>::new();
     let reactions = get_reactions_from_filename(filename.clone());
     let fuel_reaction = reactions.get("FUEL").unwrap();
-    let up_fuel_reaction = multiply_reaction(&fuel_reaction, 10);
-    println!("Calculating ore needed to produce 1000 FUEL...");
-    let (ore_needed_1k, remainders_1k) =
-        get_ore_needed_for_reaction(&reactions, &up_fuel_reaction, &HashMap::new());
-    println!("Grossing up remainders and making more FUEL...");
-    let lots = ((ore_target / ore_needed_1k) as f64 * 0.95) as u64;
-    let mut grossed_up_remainder = remainders_1k
-        .into_iter()
-        .map(|(k, v)| (k, v * lots))
-        .collect();
-    let mut ore_remaining = ore_target - ore_needed_1k * lots;
-    let mut fuel_made = (10.0 * lots as f64 * 0.95) as u64;
-
-    println!("Conducting loop to make remaining FUEL and deplete remaining ORE...");
     loop {
+        let start = Instant::now();
         let (ore_needed, new_remainders) =
-            get_ore_needed_for_reaction(&reactions, &fuel_reaction, &grossed_up_remainder);
-        if ore_needed < ore_remaining {
+            get_ore_needed_for_reaction(&reactions, &fuel_reaction, &remainders);
+        let duration = start.elapsed();
+        println!("Time taken: {:?}", duration);
+        remainders = new_remainders.clone();
+        if ore_needed > ore_remaining {
             return fuel_made;
         }
-        grossed_up_remainder = new_remainders.clone();
+        fuel_made += 10;
         ore_remaining -= ore_needed;
-        fuel_made += 1;
         if fuel_made % 10 == 0 {
-            println!(
-                "Fuel made: {} ||| Ore needed: {} ||| Ore remaining: {}",
-                fuel_made, ore_needed, ore_remaining
-            );
+            println!("Fuel made: {}", fuel_made);
         }
     }
-
-    /*
-    let (ore_needed_max, _) =
-        get_ore_needed_for_reaction(&reactions, &fuel_reaction, &HashMap::new());
-
-    let mut target_fuel = ore_target / ore_needed_max;
-    let mut previous_target = 0;
-    loop {
-        println!("Calculating ORE needed for {} FUEL...", target_fuel);
-        let trial_fuel_reaction = multiply_reaction(&fuel_reaction, target_fuel);
-        let (ore_needed, _) =
-            get_ore_needed_for_reaction(&reactions, &trial_fuel_reaction, &HashMap::new());
-        if ore_needed < ore_target {
-            println!(">>> Not enough ORE - doubling target FUEL");
-            previous_target = target_fuel;
-            target_fuel *= 2;
-        } else if ore_needed > ore_target {
-            println!(">>> Too much ORE - splitting the difference");
-            let temp = target_fuel;
-            target_fuel = previous_target + (target_fuel - previous_target) / 2;
-            previous_target = temp;
-            if target_fuel == previous_target {
-                return target_fuel;
-            }
-        } else {
-            return target_fuel;
-        }
-    }
-    */
 }
 
 fn get_reactions_from_filename(filename: String) -> HashMap<String, ChemicalReaction> {
