@@ -46,16 +46,13 @@ pub fn solution_part_2(filename: String) -> u64 {
     let reactions = get_reactions_from_filename(filename.clone());
     let fuel_reaction = reactions.get("FUEL").unwrap();
     loop {
-        let start = Instant::now();
         let (ore_needed, new_remainders) =
             get_ore_needed_for_reaction(&reactions, &fuel_reaction, &remainders);
-        let duration = start.elapsed();
-        println!("Time taken: {:?}", duration);
         remainders = new_remainders.clone();
         if ore_needed > ore_remaining {
             return fuel_made;
         }
-        fuel_made += 10;
+        fuel_made += 1;
         ore_remaining -= ore_needed;
         if fuel_made % 10 == 0 {
             println!("Fuel made: {}", fuel_made);
