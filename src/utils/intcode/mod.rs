@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use super::fs;
@@ -296,7 +295,7 @@ impl IntcodeMachine {
         // Read line from file
         let mut read_buf = String::new();
         match file.read_to_string(&mut read_buf) {
-            Err(e) => panic!("Error reading file. ({})", e.description()),
+            Err(e) => panic!("Error reading file. ({})", e.to_string()),
             Ok(_) => 0,
         };
         // Split string program into arguments

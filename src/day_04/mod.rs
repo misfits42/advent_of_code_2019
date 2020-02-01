@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::Read;
-use std::error::Error;
 
 /// Calculates solution for Day 04 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> i32 {
@@ -9,7 +8,7 @@ pub fn solution_part_1(filename: String) -> i32 {
     // Read file line
     let mut input = String::new();
     match file.read_to_string(&mut input) {
-        Err(e) => panic!("Error: {}", e.description()),
+        Err(e) => panic!("Error: {}", e.to_string()),
         Ok(_) => 0
     };
     // Extract arguments
@@ -37,7 +36,7 @@ pub fn solution_part_2(filename: String) -> i32 {
     // Read file line
     let mut input = String::new();
     match file.read_to_string(&mut input) {
-        Err(e) => panic!("Error: {}", e.description()),
+        Err(e) => panic!("Error: {}", e.to_string()),
         Ok(_) => 0,
     };
     // Extract arguments

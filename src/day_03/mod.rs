@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::io::Read;
 use std::usize::*;
 
@@ -27,7 +26,7 @@ pub fn solution_part_1(filename: String) -> usize {
     // Read file lines
     let mut file_str = String::new();
     match file.read_to_string(&mut file_str) {
-        Err(e) => panic!("Failed to read file to string. ({})", e.description()),
+        Err(e) => panic!("Failed to read file to string. ({})", e.to_string()),
         Ok(_) => 0,
     };
     // Separate out the two wires given in input file
@@ -75,7 +74,7 @@ pub fn solution_part_2(filename: String) -> usize {
     // Read file lines
     let mut file_str = String::new();
     match file.read_to_string(&mut file_str) {
-        Err(e) => panic!("Failed to read file to string. ({})", e.description()),
+        Err(e) => panic!("Failed to read file to string. ({})", e.to_string()),
         Ok(_) => 0,
     };
     // Separate out the two wires given in input file

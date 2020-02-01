@@ -1,5 +1,4 @@
 use std::io::Read;
-use std::error::Error;
 use super::utils::fs;
 use super::utils::sif::SifImage;
 use std::u32::*;
@@ -9,7 +8,7 @@ pub fn solution_part_1(filename: String) -> u32 {
     let mut file = fs::open_file(filename);
     let mut read_buf = String::from("");
     match file.read_to_string(&mut read_buf) {
-        Err(e) => panic!("Error reading file. ({})", e.description()),
+        Err(e) => panic!("Error reading file. ({})", e.to_string()),
         Ok(_) => 0,
     };
     read_buf = String::from(read_buf.trim());
@@ -39,7 +38,7 @@ pub fn solution_part_2(filename: String) {
     let mut file = fs::open_file(filename);
     let mut read_buf = String::from("");
     match file.read_to_string(&mut read_buf) {
-        Err(e) => panic!("Error reading file. ({})", e.description()),
+        Err(e) => panic!("Error reading file. ({})", e.to_string()),
         Ok(_) => 0,
     };
     read_buf = String::from(read_buf.trim());
