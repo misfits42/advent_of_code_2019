@@ -24,53 +24,83 @@ fn get_min_ore_needed_one_fuel(filename: String) -> u64 {
     // Get fuel reaction and do initial checks
     let fuel_reaction = reactions.get("FUEL").unwrap().clone();
     let (min_ore_needed, _) =
-        get_ore_needed_for_reaction(&reactions.clone(), fuel_reaction, &mut HashMap::new());
+        get_ore_needed_for_reaction(&reactions.clone(), &fuel_reaction, &mut HashMap::new());
     return min_ore_needed;
+}
+
+fn multiply_reaction(reaction: &ChemicalReaction, multiplier: u64) -> ChemicalReaction {
+    let mut new_reaction = reaction.clone();
+    new_reaction.output.quantity *= multiplier;
+    for i in 0..new_reaction.input.len() {
+        new_reaction.input[i].quantity *= multiplier;
+    }
+    return new_reaction;
 }
 
 /// Calculates solution for Day 14 Part 2 challenge.
 pub fn solution_part_2(filename: String) -> u64 {
-    let mut ore_remaining = 10e12 as u64;
+    let ore_target = 1e12 as u64; // 1 TRILLION ORE!!!
     let reactions = get_reactions_from_filename(filename.clone());
     let fuel_reaction = reactions.get("FUEL").unwrap();
-    let (ore_needed_max, remainders) =
-        get_ore_needed_for_reaction(&reactions, fuel_reaction.clone(), &HashMap::new());
-    let mut fuel_made = 1;
+    let up_fuel_reaction = multiply_reaction(&fuel_reaction, 10);
+    println!("Calculating ore needed to produce 1000 FUEL...");
+    let (ore_needed_1k, remainders_1k) =
+        get_ore_needed_for_reaction(&reactions, &up_fuel_reaction, &HashMap::new());
+    println!("Grossing up remainders and making more FUEL...");
+    let lots = ((ore_target / ore_needed_1k) as f64 * 0.95) as u64;
+    let mut grossed_up_remainder = remainders_1k
+        .into_iter()
+        .map(|(k, v)| (k, v * lots))
+        .collect();
+    let mut ore_remaining = ore_target - ore_needed_1k * lots;
+    let mut fuel_made = (10.0 * lots as f64 * 0.95) as u64;
 
-    let mut remainder_tracker = remainders.clone();
+    println!("Conducting loop to make remaining FUEL and deplete remaining ORE...");
     loop {
-        let (ore_used, new_remainders) = get_ore_needed_for_reaction(&reactions, fuel_reaction.clone(), &mut remainder_tracker);
-        remainder_tracker = new_remainders.clone();
-        if ore_remaining < ore_used {
+        let (ore_needed, new_remainders) =
+            get_ore_needed_for_reaction(&reactions, &fuel_reaction, &grossed_up_remainder);
+        if ore_needed < ore_remaining {
             return fuel_made;
         }
-        ore_remaining -= ore_used;
+        grossed_up_remainder = new_remainders.clone();
+        ore_remaining -= ore_needed;
         fuel_made += 1;
-
-        /*
-        for _ in 0..100 {
-            remainder_tracker = remainder_tracker
-                .into_iter()
-                .map(|(k, v)| (k.clone(), v + remainders.get(&k).unwrap()))
-                .collect();
-            if ore_remaining < ore_needed_max {
-                return fuel_made;
-            }
-            ore_remaining -= ore_needed_max;
-            fuel_made += 1;
+        if fuel_made % 10 == 0 {
+            println!(
+                "Fuel made: {} ||| Ore needed: {} ||| Ore remaining: {}",
+                fuel_made, ore_needed, ore_remaining
+            );
         }
-        for _ in 0..10 {
-            let (ore_used, new_remainders) = get_ore_needed_for_reaction(&reactions, fuel_reaction.clone(), &mut remainder_tracker);
-            remainder_tracker = new_remainders.clone();
-            if ore_remaining < ore_used {
-                return fuel_made;
-            }
-            ore_remaining -= ore_used;
-            fuel_made += 1;
-        }
-        */
-        println!("Fuel made: {} ||| Ore used: {} ||| Ore remaining: {}", fuel_made, ore_used, ore_remaining);
     }
+
+    /*
+    let (ore_needed_max, _) =
+        get_ore_needed_for_reaction(&reactions, &fuel_reaction, &HashMap::new());
+
+    let mut target_fuel = ore_target / ore_needed_max;
+    let mut previous_target = 0;
+    loop {
+        println!("Calculating ORE needed for {} FUEL...", target_fuel);
+        let trial_fuel_reaction = multiply_reaction(&fuel_reaction, target_fuel);
+        let (ore_needed, _) =
+            get_ore_needed_for_reaction(&reactions, &trial_fuel_reaction, &HashMap::new());
+        if ore_needed < ore_target {
+            println!(">>> Not enough ORE - doubling target FUEL");
+            previous_target = target_fuel;
+            target_fuel *= 2;
+        } else if ore_needed > ore_target {
+            println!(">>> Too much ORE - splitting the difference");
+            let temp = target_fuel;
+            target_fuel = previous_target + (target_fuel - previous_target) / 2;
+            previous_target = temp;
+            if target_fuel == previous_target {
+                return target_fuel;
+            }
+        } else {
+            return target_fuel;
+        }
+    }
+    */
 }
 
 fn get_reactions_from_filename(filename: String) -> HashMap<String, ChemicalReaction> {
@@ -139,7 +169,7 @@ fn get_reactions_from_filename(filename: String) -> HashMap<String, ChemicalReac
 /// material from raw ORE.
 fn get_ore_needed_for_reaction(
     reactions_record: &HashMap<String, ChemicalReaction>,
-    target_reaction: ChemicalReaction,
+    target_reaction: &ChemicalReaction,
     remainders: &HashMap<String, u64>,
 ) -> (u64, HashMap<String, u64>) {
     if target_reaction.input.len() == 1 && target_reaction.input[0].name == "ORE" {
@@ -148,7 +178,7 @@ fn get_ore_needed_for_reaction(
     let mut total_ore_needed = 0;
     let mut remainders = remainders.clone();
 
-    for input_material in target_reaction.input {
+    for input_material in target_reaction.input.clone() {
         let input_reaction = reactions_record.get(&input_material.name).unwrap();
         if !remainders.contains_key(&input_material.name) {
             remainders.insert(input_material.name.clone(), 0);
@@ -171,7 +201,7 @@ fn get_ore_needed_for_reaction(
             for _ in 0..reps {
                 let (ore, new_remainders) = get_ore_needed_for_reaction(
                     &reactions_record,
-                    input_reaction.clone(),
+                    &input_reaction,
                     &mut remainders,
                 );
                 ore_needed += ore;
