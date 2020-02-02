@@ -1,7 +1,6 @@
 use super::utils::fs;
 use super::utils::io;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Material {
@@ -20,6 +19,8 @@ pub fn solution_part_1(filename: String) -> u64 {
     return get_min_ore_needed_one_fuel(filename);
 }
 
+/// Calculates the minimum ORE needed to produce one unit of FUEL from reactions specified in given
+/// filename.
 fn get_min_ore_needed_one_fuel(filename: String) -> u64 {
     let reactions = get_reactions_from_filename(filename);
     // Get fuel reaction and do initial checks
@@ -29,6 +30,7 @@ fn get_min_ore_needed_one_fuel(filename: String) -> u64 {
     return min_ore_needed;
 }
 
+/// Multiply material amounts on both sides of the given ChemicalReaction.
 fn multiply_reaction(reaction: &ChemicalReaction, multiplier: u64) -> ChemicalReaction {
     let mut new_reaction = reaction.clone();
     new_reaction.output.quantity *= multiplier;
@@ -38,24 +40,31 @@ fn multiply_reaction(reaction: &ChemicalReaction, multiplier: u64) -> ChemicalRe
     return new_reaction;
 }
 
-/// Calculates solution for Day 14 Part 2 challenge.
+/// Calculates solution for Day 14 Part 2 challenge - using a binary search style algorithm to find
+/// the fuel that requires the amount of ORE closest to the target of ONE TRILLION without going
+/// over.
 pub fn solution_part_2(filename: String) -> u64 {
-    let mut ore_remaining = 1e12 as u64;
-    let mut fuel_made = 0;
-    let mut remainders = HashMap::<String, u64>::new();
+    let ore_target = 1e12 as u64;
     let reactions = get_reactions_from_filename(filename.clone());
     let fuel_reaction = reactions.get("FUEL").unwrap();
+    let mut low: u64 = 1;
+    let mut high: u64 = ore_target;
     loop {
-        let (ore_needed, new_remainders) =
-            get_ore_needed_for_reaction(&reactions, &fuel_reaction, &remainders);
-        remainders = new_remainders.clone();
-        if ore_needed > ore_remaining {
-            return fuel_made;
+        if high - low <= 1 {
+            return low;
         }
-        fuel_made += 1;
-        ore_remaining -= ore_needed;
-        if fuel_made % 10 == 0 {
-            println!("Fuel made: {}", fuel_made);
+        let mid = (high - low) / 2 + low;
+        println!("Trying {} FUEL...", mid);
+        let fuel_reaction_mult = multiply_reaction(&fuel_reaction, mid);
+        let (ore_needed, _) =
+            get_ore_needed_for_reaction(&reactions, &fuel_reaction_mult, &HashMap::new());
+        // Adjust upper and lower limits of search based on ore_needed
+        if ore_needed < ore_target {
+            low = mid;
+        } else if ore_needed > ore_target {
+            high = mid;
+        } else {
+            return mid;
         }
     }
 }
@@ -148,23 +157,17 @@ fn get_ore_needed_for_reaction(
             let desired_qty =
                 input_material.quantity - remainders.get(&input_material.name).unwrap();
             let reps = (desired_qty as f64 / input_reaction.output.quantity as f64).ceil() as u64;
+            // Multiply the input reaction so we can get required amount without running loops
+            let input_reaction_mult = multiply_reaction(&input_reaction, reps);
             // Update remaining amount stored based on amount due to be produced
             let produced_amount = reps * input_reaction.output.quantity;
             let amount_remaining = stored_amount + produced_amount - input_material.quantity;
             *remainders.get_mut(&input_material.name).unwrap() = amount_remaining;
-            let mut ore_needed = 0;
-            // Run repeats so remainders can be updated on each run - in case more than enough is
-            // produced from a previous run. WE NEED MINIMUM ORE!!!
-            for _ in 0..reps {
-                let (ore, new_remainders) = get_ore_needed_for_reaction(
-                    &reactions_record,
-                    &input_reaction,
-                    &mut remainders,
-                );
-                ore_needed += ore;
-                remainders = new_remainders.clone();
-            }
+            // Get ore needed to produce output of multiplied reaction
+            let (ore_needed, new_remainders) =
+                get_ore_needed_for_reaction(&reactions_record, &input_reaction_mult, &remainders);
             total_ore_needed += ore_needed;
+            remainders = new_remainders.clone();
         }
     }
     return (total_ore_needed, remainders.clone());
@@ -210,21 +213,18 @@ mod tests {
         assert_eq!(278404, result);
     }
 
-    #[ignore]
     #[test]
     pub fn test_p2_example_03() {
         let result = solution_part_2(String::from("./input/day_14/test/test_03.txt"));
         assert_eq!(82892753, result);
     }
 
-    #[ignore]
     #[test]
     pub fn test_p2_example_04() {
         let result = solution_part_2(String::from("./input/day_14/test/test_04.txt"));
         assert_eq!(5586022, result);
     }
 
-    #[ignore]
     #[test]
     pub fn test_p2_example_05() {
         let result = solution_part_2(String::from("./input/day_14/test/test_05.txt"));
