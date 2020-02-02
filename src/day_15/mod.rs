@@ -98,11 +98,7 @@ fn crawl_maze(repair_droid: &mut IntcodeMachine) -> u64 {
     maze_map.insert(current_location, STATE_CLEAR);
     let mut moves_attempted_from_current = 0;
     loop {
-        //if breadcrumbs.len() % 10000 == 0 {
         println!("Up to {} moves...", breadcrumbs.len());
-        //}
-        // Check if target square already blocked or explored
-        let target_location = current_location.get_updated_location(current_direction);
         if moves_attempted_from_current == 4 {
             moves_attempted_from_current = 0;
             current_location = rewind_move(&mut breadcrumbs, &current_location);
@@ -110,6 +106,7 @@ fn crawl_maze(repair_droid: &mut IntcodeMachine) -> u64 {
             continue;
         }
         // Check if already explored or blocked
+        let target_location = current_location.get_updated_location(current_direction);
         if let Some(_) = maze_map.get(&target_location) {
             moves_attempted_from_current += 1;
             current_direction = current_direction.get_rotated_direction();
@@ -129,11 +126,10 @@ fn crawl_maze(repair_droid: &mut IntcodeMachine) -> u64 {
                 current_direction = current_direction.get_rotated_direction();
             },
             STATUS_GOOD_MOVE => {
+                moves_attempted_from_current = 1;
                 breadcrumbs.push(current_direction.clone());
                 maze_map.insert(target_location, STATE_CLEAR);
                 // Update current location and maintain current direction
-                moves_attempted_from_current = 1;
-                current_direction = MoveDirection::North;
                 current_location = target_location;
             },
             STATUS_GOOD_MOVE_OXYGEN => {
