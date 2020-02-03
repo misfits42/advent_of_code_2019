@@ -64,6 +64,7 @@ struct Location {
 }
 
 impl Location {
+    /// Generates the new location by moving one unit in the specified direction.
     pub fn get_updated_location(&self, direction: MoveDirection) -> Self {
         let mut updated = self.clone();
         match direction {
@@ -76,6 +77,9 @@ impl Location {
     }
 }
 
+/// Represents the repair droid introduced in Day 15. Has an internal Intcode computer. Keeps track
+/// of directions moved from starting point, known tile states, current location and current
+/// direction.
 struct RepairDroid {
     computer: IntcodeMachine,
     breadcrumbs: Vec<MoveDirection>,
@@ -85,6 +89,9 @@ struct RepairDroid {
 }
 
 impl RepairDroid {
+    /// Creates a new RepairDroid with the given initial memory for its Intcode computer. Starts at
+    /// location {x: 0, y: 0} and facing North. Its starting location is added to the known tiles
+    /// as a known CLEAR tile.
     pub fn new(initial_memory: Vec<i64>) -> Self {
         let mut init = Self {
             computer: IntcodeMachine::new(initial_memory.clone(), VecDeque::from(vec![])),
@@ -97,6 +104,8 @@ impl RepairDroid {
         return init;
     }
 
+    /// Reverses the last successful move by changing the manual tracking location and processing
+    /// the reverse move through the internal Intcode computer.
     pub fn rewind_move(&mut self) {
         if self.breadcrumbs.is_empty() {
             panic!("No breadcrumbs - cannot rewind moves.");
@@ -109,10 +118,12 @@ impl RepairDroid {
         self.try_move();
     }
 
+    /// Gets the next location in the current direction.
     pub fn get_target_location(&self) -> Location {
         return self.current_location.get_updated_location(self.current_direction);
     }
 
+    /// Checks if the targeted location of the RepairDroid has been explored yet.
     pub fn is_target_location_explored(&self) -> bool {
         if let Some(_) = self.known_tiles.get(&self.get_target_location()) {
             return true;
@@ -120,20 +131,25 @@ impl RepairDroid {
         return false;
     }
 
+    /// Rotates the direction of the RepairDroid by 90 degrees clockwise.
     pub fn rotate_direction(&mut self) {
         self.current_direction = self.current_direction.get_rotated_direction();
     }
 
+    /// Trys to process a move through the internal Intcode computer and returns the status code
+    /// indicating success or failure.
     pub fn try_move(&mut self) -> i64 {
         self.computer.add_input(self.current_direction.get_code());
         self.computer.execute_program_break_on_output(true);
         return self.computer.get_output_and_remove();
     }
 
+    /// Adds the target location to the known tiles with the given tile code.
     pub fn add_target_to_known_tiles(&mut self, code: i64) {
         self.known_tiles.insert(self.get_target_location(), code);
     }
 
+    /// Handles a successful move by updating the internal state of the RepairDroid.
     pub fn handle_successful_move(&mut self, oxygen_found: bool) {
         if oxygen_found {
             self.add_target_to_known_tiles(STATE_GOAL);
@@ -144,30 +160,124 @@ impl RepairDroid {
         self.breadcrumbs.push(self.current_direction);
     }
 
+    /// Handles a bad move by inserting a wall at the targeted location and rotating the droid.
     pub fn handle_bad_move(&mut self) {
         self.add_target_to_known_tiles(STATE_WALL);
         self.rotate_direction();
     }
 
+    /// Gets the number of moves made by the droid from its starting location.
     pub fn get_num_moves_from_origin(&self) -> u64 {
         return self.breadcrumbs.len() as u64;
     }
+
+    /// Resets the RepairDroid's knowledge of the map to only it's current location.
+    pub fn reset_to_current_location(&mut self) {
+        // Reset knowledge of how repair droid got to current location
+        self.breadcrumbs.clear();
+        // Clear the known tiles and reinsert the current location as the only known tile
+        let current_location_state = *self.known_tiles.get(&self.current_location).unwrap();
+        self.known_tiles.clear();
+        self.known_tiles.insert(self.current_location.clone(), current_location_state);
+        self.current_direction = MoveDirection::North;
+    }
+
+    /// Checks if a given location has been explored by the RepairDroid.
+    pub fn check_if_location_explored(&self, location: Location) -> bool {
+        if let Some(_) = self.known_tiles.get(&location) {
+            return true;
+        }
+        return false;
+    }
+
+    /// Checks if all locations around the RepairDroid's current location has been explored.
+    pub fn check_all_around_explored(&self) -> bool {
+        let north_target = self.current_location.get_updated_location(MoveDirection::North);
+        let east_target = self.current_location.get_updated_location(MoveDirection::East);
+        let south_target = self.current_location.get_updated_location(MoveDirection::South);
+        let west_target = self.current_location.get_updated_location(MoveDirection::West);
+        return self.check_if_location_explored(north_target) &&
+            self.check_if_location_explored(east_target) &&
+            self.check_if_location_explored(south_target) &&
+            self.check_if_location_explored(west_target);
+    }
 }
 
+/// Calculates the solution for Day 15 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> u64 {
     let initial_memory: Vec<i64> = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut repair_droid = RepairDroid::new(initial_memory.clone());
-    let moves_taken = crawl_maze(&mut repair_droid);
+    let moves_taken = crawl_map_to_oxygen(&mut repair_droid);
     return moves_taken;
 }
 
-fn crawl_maze(repair_droid: &mut RepairDroid,) -> u64 {
+/// Calculates the solution for Day 15 Part 2 challenge.
+pub fn solution_part_2(filename: String) -> u64 {
+    let initial_memory: Vec<i64> = IntcodeMachine::extract_intcode_memory_from_filename(filename);
+    let mut repair_droid = RepairDroid::new(initial_memory.clone());
+    // Move the droid to the location of the oxygen
+    crawl_map_to_oxygen(&mut repair_droid);
+    // Find the longest path from the location of oxygen
+    let longest_path = find_longest_path_from_start(&mut repair_droid);
+    return longest_path;
+}
+
+/// Finds the longest path from the repair droid's current location by initially resetting its
+/// knowledge beyond its current location then crawling map until it is fully explored.
+/// 
+/// Search is known to be finished when
+fn find_longest_path_from_start(repair_droid: &mut RepairDroid) -> u64 {
+    repair_droid.reset_to_current_location();
+    let mut longest_path_seen = 0;
+    let mut moves_attempted_from_current = 0;
+    loop {
+        // Check if the droid has returned to the starting location with no more tiles to explore
+        if repair_droid.breadcrumbs.len() == 0 && repair_droid.known_tiles.len() > 0 && repair_droid.check_all_around_explored() {
+            return longest_path_seen as u64;
+        }
+        // Check if all directions have been exhausted from current location
+        if moves_attempted_from_current == 4 {
+            moves_attempted_from_current = 0;
+            repair_droid.rewind_move();
+            continue;
+        }
+        // Check if the target location has been explored - don't need to try move.
+        if repair_droid.is_target_location_explored() {
+            moves_attempted_from_current += 1;
+            repair_droid.rotate_direction();
+            continue;
+        }
+        // Try to move the droid and check outcome of move
+        let status = repair_droid.try_move();
+        match status {
+            STATUS_HIT_WALL => {
+                moves_attempted_from_current += 1;
+                repair_droid.handle_bad_move();
+            },
+            STATUS_GOOD_MOVE => {
+                moves_attempted_from_current = 0;
+                repair_droid.handle_successful_move(false);
+            },
+            STATUS_GOOD_MOVE_OXYGEN => {
+                moves_attempted_from_current = 0;
+                repair_droid.handle_successful_move(true);
+            },
+            _ => panic!("Bad move status observed: {}", status),
+        }
+        // Check if we have seen a longer path than previously observed
+        if repair_droid.breadcrumbs.len() > longest_path_seen {
+            longest_path_seen = repair_droid.breadcrumbs.len();
+        }
+    }
+}
+
+/// Crawls the repair droid through the map until it finds the oxygen tank.
+fn crawl_map_to_oxygen(repair_droid: &mut RepairDroid) -> u64 {
     let mut moves_attempted_from_current = 0;
     loop {
         if moves_attempted_from_current == 4 {
             moves_attempted_from_current = 0;
             repair_droid.rewind_move();
-            // println!("XXX Rewound move to: {:?}", repair_droid.current_location);
             continue;
         }
         // Check if already explored or blocked
@@ -182,16 +292,13 @@ fn crawl_maze(repair_droid: &mut RepairDroid,) -> u64 {
             STATUS_HIT_WALL => {
                 moves_attempted_from_current += 1;
                 repair_droid.handle_bad_move();
-                // println!("XXX Bad move attempted to: {:?}", repair_droid.current_direction);
             },
             STATUS_GOOD_MOVE => {
                 moves_attempted_from_current = 0;
                 repair_droid.handle_successful_move(false);
-                // println!("$$$ Successful move to: {:?} [{:?}]", repair_droid.current_direction, repair_droid.current_location);
             },
             STATUS_GOOD_MOVE_OXYGEN => {
                 repair_droid.handle_successful_move(true);
-                // println!("$$$ Successful move to: {:?} [{:?}]", repair_droid.current_direction, repair_droid.current_location);
                 return repair_droid.get_num_moves_from_origin();
             },
             _ => panic!("Bad move status observed: {}", status),
