@@ -255,10 +255,7 @@ impl RepairDroid {
         let mut longest_path_seen = 0;
         loop {
             // Check if the droid has returned to the starting location with no more tiles to explore
-            if self.breadcrumbs.len() == 0
-                && self.known_tiles.len() > 0
-                && self.check_all_around_explored()
-            {
+            if self.breadcrumbs.len() == 0 && self.check_all_around_explored() {
                 return longest_path_seen as u64;
             }
             // Check if all directions have been exhausted from current location
