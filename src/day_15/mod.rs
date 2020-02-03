@@ -2,8 +2,17 @@ use super::utils::intcode::IntcodeMachine;
 use std::collections::VecDeque;
 use std::collections::HashMap;
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-enum MoveDirection {
+// Status codes
+const STATUS_HIT_WALL: i64 = 0;
+const STATUS_GOOD_MOVE: i64 = 1;
+const STATUS_GOOD_MOVE_OXYGEN: i64 = 2;
+// Maze states
+const STATE_WALL: i64 = 0;
+const STATE_CLEAR: i64 = 1;
+const STATE_GOAL: i64 = 2;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum MoveDirection {
     North,
     South,
     West,
@@ -22,7 +31,7 @@ impl MoveDirection {
     }
 
     /// Gets the next direction in clockwise rotation.
-    pub fn get_rotated_direction(&self) -> Self {
+    pub fn get_rotated_direction(&self) -> MoveDirection {
         match self {
             MoveDirection::North => MoveDirection::East,
             MoveDirection::East => MoveDirection::South,
@@ -32,7 +41,7 @@ impl MoveDirection {
     }
 
     /// Gets the opposite direction (180 degree opposite).
-    pub fn get_opposite_direction(&self) -> Self {
+    pub fn get_opposite_direction(&self) -> MoveDirection {
         match self {
             MoveDirection::North => MoveDirection::South,
             MoveDirection::South => MoveDirection::North,
@@ -41,14 +50,6 @@ impl MoveDirection {
         }
     }
 }
-
-// Status codes
-const STATUS_HIT_WALL: i64 = 0;
-const STATUS_GOOD_MOVE: i64 = 1;
-const STATUS_GOOD_MOVE_OXYGEN: i64 = 2;
-// Maze states
-const STATE_WALL: i64 = 0;
-const STATE_CLEAR: i64 = 1;
 
 // #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 // enum MazeState {
@@ -75,66 +76,123 @@ impl Location {
     }
 }
 
+struct RepairDroid {
+    computer: IntcodeMachine,
+    breadcrumbs: Vec<MoveDirection>,
+    known_tiles: HashMap<Location, i64>,
+    current_location: Location,
+    current_direction: MoveDirection,
+}
+
+impl RepairDroid {
+    pub fn new(initial_memory: Vec<i64>) -> Self {
+        let mut init = Self {
+            computer: IntcodeMachine::new(initial_memory.clone(), VecDeque::from(vec![])),
+            breadcrumbs: vec![],
+            known_tiles: HashMap::new(),
+            current_location: Location { x: 0, y: 0 },
+            current_direction: MoveDirection::North,
+        };
+        init.known_tiles.insert(init.current_location, STATE_CLEAR);
+        return init;
+    }
+
+    pub fn rewind_move(&mut self) {
+        if self.breadcrumbs.is_empty() {
+            panic!("No breadcrumbs - cannot rewind moves.");
+        }
+        let back_direction = self.breadcrumbs.pop().unwrap().get_opposite_direction();
+        // Update manual tracking of location
+        self.current_location = self.current_location.get_updated_location(back_direction);
+        // Update location in repair droid intcode computer
+        self.current_direction = back_direction;
+        self.try_move();
+    }
+
+    pub fn get_target_location(&self) -> Location {
+        return self.current_location.get_updated_location(self.current_direction);
+    }
+
+    pub fn is_target_location_explored(&self) -> bool {
+        if let Some(_) = self.known_tiles.get(&self.get_target_location()) {
+            return true;
+        }
+        return false;
+    }
+
+    pub fn rotate_direction(&mut self) {
+        self.current_direction = self.current_direction.get_rotated_direction();
+    }
+
+    pub fn try_move(&mut self) -> i64 {
+        self.computer.add_input(self.current_direction.get_code());
+        self.computer.execute_program_break_on_output(true);
+        return self.computer.get_output_and_remove();
+    }
+
+    pub fn add_target_to_known_tiles(&mut self, code: i64) {
+        self.known_tiles.insert(self.get_target_location(), code);
+    }
+
+    pub fn handle_successful_move(&mut self, oxygen_found: bool) {
+        if oxygen_found {
+            self.add_target_to_known_tiles(STATE_GOAL);
+        } else {
+            self.add_target_to_known_tiles(STATE_CLEAR);
+        }
+        self.current_location = self.get_target_location();
+        self.breadcrumbs.push(self.current_direction);
+    }
+
+    pub fn handle_bad_move(&mut self) {
+        self.add_target_to_known_tiles(STATE_WALL);
+        self.rotate_direction();
+    }
+
+    pub fn get_num_moves_from_origin(&self) -> u64 {
+        return self.breadcrumbs.len() as u64;
+    }
+}
+
 pub fn solution_part_1(filename: String) -> u64 {
     let initial_memory: Vec<i64> = IntcodeMachine::extract_intcode_memory_from_filename(filename);
-    let mut repair_droid = IntcodeMachine::new(initial_memory.clone(), VecDeque::from(vec![]));
+    let mut repair_droid = RepairDroid::new(initial_memory.clone());
     let moves_taken = crawl_maze(&mut repair_droid);
     return moves_taken;
 }
 
-fn rewind_move(breadcrumbs: &mut Vec<MoveDirection>, current_location: &Location) -> Location {
-    if breadcrumbs.is_empty() {
-        panic!("No breadcrumbs - cannot rewind moves.");
-    }
-    let back_direction = breadcrumbs.pop().unwrap().get_opposite_direction();
-    return current_location.get_updated_location(back_direction);
-}
-
-fn crawl_maze(repair_droid: &mut IntcodeMachine) -> u64 {
-    let mut breadcrumbs: Vec<MoveDirection> = vec![];
-    let mut current_direction = MoveDirection::North;
-    let mut maze_map: HashMap<Location, i64> = HashMap::new();
-    let mut current_location = Location { x: 0, y: 0 };
-    maze_map.insert(current_location, STATE_CLEAR);
+fn crawl_maze(repair_droid: &mut RepairDroid,) -> u64 {
     let mut moves_attempted_from_current = 0;
     loop {
-        println!("Up to {} moves...", breadcrumbs.len());
         if moves_attempted_from_current == 4 {
             moves_attempted_from_current = 0;
-            current_location = rewind_move(&mut breadcrumbs, &current_location);
-            current_direction = MoveDirection::North;
+            repair_droid.rewind_move();
+            // println!("XXX Rewound move to: {:?}", repair_droid.current_location);
             continue;
         }
         // Check if already explored or blocked
-        let target_location = current_location.get_updated_location(current_direction);
-        if let Some(_) = maze_map.get(&target_location) {
+        if repair_droid.is_target_location_explored() {
             moves_attempted_from_current += 1;
-            current_direction = current_direction.get_rotated_direction();
+            repair_droid.rotate_direction();
             continue;
         }
-        // Give move command to droid
-        repair_droid.add_input(current_direction.get_code());
-        // Instruct droid to execute move
-        repair_droid.execute_program_break_on_output(true);
         // Get outcome status from move
-        let status = repair_droid.get_output_and_remove();
+        let status = repair_droid.try_move();
         match status {
             STATUS_HIT_WALL => {
                 moves_attempted_from_current += 1;
-                maze_map.insert(target_location, STATE_WALL);
-                // Rotate direction but don't update current location
-                current_direction = current_direction.get_rotated_direction();
+                repair_droid.handle_bad_move();
+                // println!("XXX Bad move attempted to: {:?}", repair_droid.current_direction);
             },
             STATUS_GOOD_MOVE => {
-                moves_attempted_from_current = 1;
-                breadcrumbs.push(current_direction.clone());
-                maze_map.insert(target_location, STATE_CLEAR);
-                // Update current location and maintain current direction
-                current_location = target_location;
+                moves_attempted_from_current = 0;
+                repair_droid.handle_successful_move(false);
+                // println!("$$$ Successful move to: {:?} [{:?}]", repair_droid.current_direction, repair_droid.current_location);
             },
             STATUS_GOOD_MOVE_OXYGEN => {
-                breadcrumbs.push(current_direction.clone());
-                return breadcrumbs.len() as u64;
+                repair_droid.handle_successful_move(true);
+                // println!("$$$ Successful move to: {:?} [{:?}]", repair_droid.current_direction, repair_droid.current_location);
+                return repair_droid.get_num_moves_from_origin();
             },
             _ => panic!("Bad move status observed: {}", status),
         }
