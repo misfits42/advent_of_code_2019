@@ -1,28 +1,48 @@
 use std::fs;
-use std::collections::HashMap;
 
 struct FftPattern {
-    trailing_zeros: usize,
-    pattern: Vec<i8>,
+    level: usize,
+    signal_length: usize,
 }
 
 impl FftPattern {
-    pub fn new(trailing_zeros: usize, pattern: Vec<i8>) -> Self {
+    pub fn new(level: usize, signal_length: usize) -> Self {
         Self {
-            trailing_zeros: trailing_zeros,
-            pattern: pattern,
+            level: level,
+            signal_length: signal_length,
         }
     }
 
     pub fn get_value(&self, index: usize) -> i8 {
-        if index < self.trailing_zeros {
+        // Trailing zero check
+        if index < self.level - 1 {
             return 0;
         }
-        return self.pattern[index - self.trailing_zeros];
+        // Edge case for level 1
+        if index < 3 && self.level == 1 {
+            match index {
+                0 => return 1,
+                1 => return 0,
+                2 => return -1,
+                _ => panic!("Mathematically shouldn't get to this case."),
+            }
+        }
+        // Work out where the index sits in the repeating pattern of length: 4 * level
+        let remainder = index % (self.level * 4);
+        if remainder < self.level {
+            return 0;
+        } else if remainder < self.level * 2 {
+            return 1;
+        } else if remainder < self.level * 3 {
+            return 0;
+        } else if remainder < self.level * 4 {
+            return -1;
+        }
+        panic!("Mathematically shouldn't reach here!");
     }
 
     pub fn size(&self) -> usize {
-        return self.trailing_zeros + self.pattern.len();
+        return self.signal_length;
     }
 }
 
@@ -71,6 +91,8 @@ fn get_input_digits_from_filename(filename: String) -> Vec<i64> {
 }
 
 fn generate_pattern(level: usize, length: usize) -> FftPattern {
+    return FftPattern::new(level, length);
+    /*
     let basic_pattern = vec![0, 1, 0, -1];
     let mut basic_cycle = basic_pattern.iter().cycle();
     let mut pattern: Vec<i8> = vec![0; length - level + 1];
@@ -99,6 +121,7 @@ fn generate_pattern(level: usize, length: usize) -> FftPattern {
             }
         }
     }
+    */
 }
 
 fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> Vec<i64> {
@@ -115,18 +138,13 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
             phase_input.push(input_digits[i]);
         }
     }
-    let mut pattern_store: HashMap<usize, FftPattern> = HashMap::new();
     for phase in 0..num_phases {
         for level in 1..signal_length+1 {
             if level % 10 == 0 {
                 println!("Starting Phase {} Level {}...", phase, level);
             }
-            // Construct the pattern for current level
-            if !pattern_store.contains_key(&level) {
-                let new_pattern = generate_pattern(level, signal_length);
-                pattern_store.insert(level, new_pattern);
-            }
-            let pattern = pattern_store.get(&level).unwrap();
+            let pattern = generate_pattern(level, signal_length);
+            println!("");
             let mut output = 0;
             let mut i = 0;
             while i < pattern.size() {
