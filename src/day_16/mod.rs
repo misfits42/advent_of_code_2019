@@ -1,6 +1,31 @@
 use std::fs;
 use std::collections::HashMap;
 
+struct FftPattern {
+    trailing_zeros: usize,
+    pattern: Vec<i8>,
+}
+
+impl FftPattern {
+    pub fn new(trailing_zeros: usize, pattern: Vec<i8>) -> Self {
+        Self {
+            trailing_zeros: trailing_zeros,
+            pattern: pattern,
+        }
+    }
+
+    pub fn get_value(&self, index: usize) -> i8 {
+        if index < self.trailing_zeros {
+            return 0;
+        }
+        return self.pattern[index - self.trailing_zeros];
+    }
+
+    pub fn size(&self) -> usize {
+        return self.trailing_zeros + self.pattern.len();
+    }
+}
+
 /// Calculates the solution to Day 16 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> String {
     return get_fft_result_string(filename, 1, 100);
@@ -45,39 +70,32 @@ fn get_input_digits_from_filename(filename: String) -> Vec<i64> {
     return input_digits;
 }
 
-fn generate_pattern(level: usize, length: usize) -> Vec<i64> {
+fn generate_pattern(level: usize, length: usize) -> FftPattern {
     let basic_pattern = vec![0, 1, 0, -1];
     let mut basic_cycle = basic_pattern.iter().cycle();
-    let mut pattern: Vec<i64> = vec![0; length];
-    let mut first_ignored = false;
+    let mut pattern: Vec<i8> = vec![0; length - level + 1];
     let mut pattern_index = 0;
+    let mut first_zeroes_seen = false;
     loop {
         loop {
             let next = *basic_cycle.next().unwrap();
-            if next == 0 && pattern_index > 0 {
-                let skip_amount = match pattern_index {
-                    0 => level - 1,
-                    _ => level,
-                };
-                pattern_index += skip_amount;
-                if pattern_index >= length {
-                    return pattern;
+            if next == 0 {
+                if !first_zeroes_seen {
+                    first_zeroes_seen = true;
+                    continue;
+                }
+                pattern_index += level;
+                if pattern_index >= pattern.len() {
+                    return FftPattern::new(level-1, pattern);
                 }
                 continue;
             }
-            let cap = match first_ignored {
-                false => level - 1,
-                true => level,
-            };
-            for _ in 0..cap {
+            for _ in 0..level {
                 pattern[pattern_index] = next;
                 pattern_index += 1;
-                if pattern_index >= length {
-                    return pattern;
+                if pattern_index >= pattern.len() {
+                    return FftPattern::new(level-1, pattern);
                 }
-            }
-            if !first_ignored {
-                first_ignored = true;
             }
         }
     }
@@ -97,7 +115,7 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
             phase_input.push(input_digits[i]);
         }
     }
-    let mut pattern_store: HashMap<usize, Vec<i64>> = HashMap::new();
+    let mut pattern_store: HashMap<usize, FftPattern> = HashMap::new();
     for phase in 0..num_phases {
         for level in 1..signal_length+1 {
             if level % 10 == 0 {
@@ -111,8 +129,8 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
             let pattern = pattern_store.get(&level).unwrap();
             let mut output = 0;
             let mut i = 0;
-            while i < pattern.len() {
-                if pattern[i] == 0 {
+            while i < pattern.size() {
+                if pattern.get_value(i) == 0 {
                     let skip_amount = match i {
                         0 => level - 1,
                         _ => level,
@@ -120,7 +138,7 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
                     i += skip_amount;
                     continue;
                 }
-                output += phase_input[i] * pattern[i];
+                output += phase_input[i] * (pattern.get_value(i) as i64);
                 i += 1;
             }
             phase_output.push(output.abs() % 10);
