@@ -1,4 +1,5 @@
 use std::fs;
+use std::collections::HashMap;
 
 /// Calculates the solution to Day 16 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> String {
@@ -96,13 +97,18 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
             phase_input.push(input_digits[i]);
         }
     }
+    let mut pattern_store: HashMap<usize, Vec<i64>> = HashMap::new();
     for phase in 0..num_phases {
         for level in 1..signal_length+1 {
-            if level % 1 == 0 {
+            if level % 10 == 0 {
                 println!("Starting Phase {} Level {}...", phase, level);
             }
             // Construct the pattern for current level
-            let pattern = generate_pattern(level, signal_length);
+            if !pattern_store.contains_key(&level) {
+                let new_pattern = generate_pattern(level, signal_length);
+                pattern_store.insert(level, new_pattern);
+            }
+            let pattern = pattern_store.get(&level).unwrap();
             let mut output = 0;
             let mut i = 0;
             while i < pattern.len() {
