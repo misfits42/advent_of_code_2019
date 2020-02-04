@@ -1,5 +1,4 @@
 use std::fs;
-use ndarray::Array;
 
 /// Calculates the solution to Day 16 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> String {
@@ -48,20 +47,36 @@ fn get_input_digits_from_filename(filename: String) -> Vec<i64> {
 fn generate_pattern(level: usize, length: usize) -> Vec<i64> {
     let basic_pattern = vec![0, 1, 0, -1];
     let mut basic_cycle = basic_pattern.iter().cycle();
-    let mut pattern: Vec<i64> = Vec::with_capacity(length);
+    let mut pattern: Vec<i64> = vec![0; length];
     let mut first_ignored = false;
-    let mut elements_added = 0;
+    let mut pattern_index = 0;
     loop {
-        let next = *basic_cycle.next().unwrap();
-        for _ in 0..level {
-            if !first_ignored {
-                first_ignored = true;
+        loop {
+            let next = *basic_cycle.next().unwrap();
+            if next == 0 && pattern_index > 0 {
+                let skip_amount = match pattern_index {
+                    0 => level - 1,
+                    _ => level,
+                };
+                pattern_index += skip_amount;
+                if pattern_index >= length {
+                    return pattern;
+                }
                 continue;
             }
-            pattern.push(next);
-            elements_added += 1;
-            if elements_added == length {
-                return pattern;
+            let cap = match first_ignored {
+                false => level - 1,
+                true => level,
+            };
+            for _ in 0..cap {
+                pattern[pattern_index] = next;
+                pattern_index += 1;
+                if pattern_index >= length {
+                    return pattern;
+                }
+            }
+            if !first_ignored {
+                first_ignored = true;
             }
         }
     }
@@ -73,30 +88,41 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
     println!("Number of repeats of input: {}", num_repeats);
     println!("Signal length: {}", signal_length);
     println!("Total number of levels to process: {}", signal_length * 100);
+    let mut phase_output: Vec<i64> = Vec::with_capacity(signal_length);
     // Copy the input digits based on the specified number of repeats
     let mut phase_input = Vec::with_capacity(signal_length);
-    // Generate array from
     for _ in 0..num_repeats {
         for i in 0..input_digits.len() {
             phase_input.push(input_digits[i]);
         }
     }
-    let mut input_matrix = Array::from(phase_input.clone());
     for phase in 0..num_phases {
-        // Generate matrix of patterns
-        let mut output_holder = vec![];
         for level in 1..signal_length+1 {
-            if level % 10 == 0 {
-                println!("Processing Phase {} Level {}...", phase, level);
+            if level % 1 == 0 {
+                println!("Starting Phase {} Level {}...", phase, level);
             }
-            let level_pattern = generate_pattern(level, signal_length);
-            let pattern_matrix = Array::from(level_pattern);
-            let dot_product = input_matrix.dot(&pattern_matrix);
-            output_holder.push(dot_product.abs() % 10);
+            // Construct the pattern for current level
+            let pattern = generate_pattern(level, signal_length);
+            let mut output = 0;
+            let mut i = 0;
+            while i < pattern.len() {
+                if pattern[i] == 0 {
+                    let skip_amount = match i {
+                        0 => level - 1,
+                        _ => level,
+                    };
+                    i += skip_amount;
+                    continue;
+                }
+                output += phase_input[i] * pattern[i];
+                i += 1;
+            }
+            phase_output.push(output.abs() % 10);
         }
-        input_matrix = Array::from(output_holder.clone());
+        phase_input = phase_output.clone();
+        phase_output.clear();
     }
-    return input_matrix.to_vec();
+    return phase_input;
 }
 
 #[cfg(test)]
