@@ -44,16 +44,24 @@ fn get_input_digits_from_filename(filename: String) -> Vec<i64> {
     return input_digits;
 }
 
-fn generate_pattern(level: usize) -> Vec<i64> {
+fn generate_pattern(level: usize, length: usize) -> Vec<i64> {
     let basic_pattern = vec![0, 1, 0, -1];
     let mut basic_cycle = basic_pattern.iter().cycle();
-    let target_pattern_length = basic_pattern.len() * level;
-    let mut pattern: Vec<i64> = Vec::with_capacity(target_pattern_length);
+    let mut pattern: Vec<i64> = Vec::with_capacity(length);
+    let mut first_ignored = false;
+    let mut elements_added = 0;
     loop {
         let next = *basic_cycle.next().unwrap();
-        pattern.push(next);
-        if pattern.len() == target_pattern_length {
-            return pattern;
+        for _ in 0..level {
+            if !first_ignored {
+                first_ignored = true;
+                continue;
+            }
+            pattern.push(next);
+            elements_added += 1;
+            if elements_added == length {
+                return pattern;
+            }
         }
     }
 }
@@ -65,38 +73,24 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
     println!("Signal length: {}", signal_length);
     println!("Total number of levels to process: {}", signal_length * 100);
     let mut phase_output: Vec<i64> = Vec::with_capacity(signal_length);
-    let mut phase_input: Vec<i64> = Vec::with_capacity(signal_length);
+    // Copy the input digits based on the specified number of repeats
+    let mut phase_input = Vec::with_capacity(signal_length);
     for _ in 0..num_repeats {
-        for input_index in 0..input_digits.len() {
-            phase_input.push(input_digits[input_index]);
+        for i in 0..input_digits.len() {
+            phase_input.push(input_digits[i]);
         }
     }
     for phase in 0..num_phases {
         for level in 1..signal_length+1 {
-            if level % 1 == 0 {
+            if level % 10 == 0 {
                 println!("Starting Phase {} Level {}...", phase, level);
             }
             // Construct the pattern for current level
-            let basic_pattern = generate_pattern(level);
-            let mut pattern_cycle = basic_pattern.iter().cycle();
-            pattern_cycle.next();
+            let pattern = generate_pattern(level, signal_length);
             let mut output = 0;
-            let mut pattern_index = 0;
-            while pattern_index < signal_length {
-                let pattern_val = *pattern_cycle.next().unwrap();
-                if pattern_val == 0 {
-                    let skip_amount = match pattern_index {
-                        0 => level - 1,
-                        _ => level,
-                    };
-                    for _ in 0..skip_amount {
-                        pattern_cycle.next();
-                    }
-                    continue;
-                }
-                let input = phase_input[pattern_index];
-                output += input * pattern_val;
-                pattern_index += 1;
+            for i in 0..pattern.len() {
+                let input = phase_input[i];
+                output += input * pattern[i];
             }
             phase_output.push(output.abs() % 10);
         }
@@ -134,21 +128,18 @@ mod tests {
         assert_eq!("01029498", result);
     }
 
-    #[ignore]
     #[test]
     fn test_d16_p2_example_01() {
         let result = solution_part_2(String::from("./input/day_16/test/test_05.txt"));
         assert_eq!("84462026", result);
     }
 
-    #[ignore]
     #[test]
     fn test_d16_p2_example_02() {
         let result = solution_part_2(String::from("./input/day_16/test/test_06.txt"));
         assert_eq!("78725270", result);
     }
 
-    #[ignore]
     #[test]
     fn test_d16_p2_example_03() {
         let result = solution_part_2(String::from("./input/day_16/test/test_07.txt"));
