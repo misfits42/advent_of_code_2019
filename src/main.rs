@@ -24,8 +24,9 @@ extern crate num;
 extern crate png;
 extern crate regex;
 extern crate primes;
+extern crate ndarray;
 
 fn main() {
-    let solution = day_16::solution_part_1(String::from("./input/day_16/test/test_01.txt"));
+    let solution = day_16::solution_part_1(String::from("./input/day_16/test/test_04.txt"));
     println!("Solution: {:?}", solution);
 }

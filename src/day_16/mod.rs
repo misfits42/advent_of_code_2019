@@ -1,4 +1,5 @@
 use std::fs;
+use ndarray::Array;
 
 /// Calculates the solution to Day 16 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> String {
@@ -72,42 +73,30 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
     println!("Number of repeats of input: {}", num_repeats);
     println!("Signal length: {}", signal_length);
     println!("Total number of levels to process: {}", signal_length * 100);
-    let mut phase_output: Vec<i64> = Vec::with_capacity(signal_length);
     // Copy the input digits based on the specified number of repeats
     let mut phase_input = Vec::with_capacity(signal_length);
+    // Generate array from
     for _ in 0..num_repeats {
         for i in 0..input_digits.len() {
             phase_input.push(input_digits[i]);
         }
     }
-    for _phase in 0..num_phases {
-        println!("{:?}", phase_input);
+    let mut input_matrix = Array::from(input_digits.clone());
+    for phase in 0..num_phases {
+        // Generate matrix of patterns
+        let mut output_holder = vec![];
         for level in 1..signal_length+1 {
-            // if level % 10 == 0 {
-            //     println!("Starting Phase {} Level {}...", phase, level);
-            // }
-            // Construct the pattern for current level
-            let pattern = generate_pattern(level, signal_length);
-            let mut output = 0;
-            let mut i = 0;
-            while i < pattern.len() {
-                if pattern[i] == 0 {
-                    let skip_amount = match i {
-                        0 => level - 1,
-                        _ => level,
-                    };
-                    i += skip_amount;
-                    continue;
-                }
-                output += phase_input[i] * pattern[i];
-                i += 1;
+            if level % 10 == 0 {
+                println!("Processing Phase {} Level {}...", phase, level);
             }
-            phase_output.push(output.abs() % 10);
+            let level_pattern = generate_pattern(level, signal_length);
+            let pattern_matrix = Array::from(level_pattern);
+            let dot_product = input_matrix.dot(&pattern_matrix);
+            output_holder.push(dot_product.abs() % 10);
         }
-        phase_input = phase_output.clone();
-        phase_output.clear();
+        input_matrix = Array::from(output_holder.clone());
     }
-    return phase_input;
+    return input_matrix.to_vec();
 }
 
 #[cfg(test)]
