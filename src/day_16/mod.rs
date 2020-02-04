@@ -81,7 +81,7 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
             phase_input.push(input_digits[i]);
         }
     }
-    let mut input_matrix = Array::from(input_digits.clone());
+    let mut input_matrix = Array::from(phase_input.clone());
     for phase in 0..num_phases {
         // Generate matrix of patterns
         let mut output_holder = vec![];
