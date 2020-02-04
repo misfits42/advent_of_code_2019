@@ -26,6 +26,6 @@ extern crate regex;
 extern crate primes;
 
 fn main() {
-    let solution = day_16::solution_part_1(String::from("./input/day_16/input.txt"));
+    let solution = day_16::solution_part_2(String::from("./input/day_16/input.txt"));
     println!("Solution: {:?}", solution);
 }
