@@ -80,17 +80,27 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
             phase_input.push(input_digits[i]);
         }
     }
-    for phase in 0..num_phases {
+    for _phase in 0..num_phases {
+        println!("{:?}", phase_input);
         for level in 1..signal_length+1 {
-            if level % 10 == 0 {
-                println!("Starting Phase {} Level {}...", phase, level);
-            }
+            // if level % 10 == 0 {
+            //     println!("Starting Phase {} Level {}...", phase, level);
+            // }
             // Construct the pattern for current level
             let pattern = generate_pattern(level, signal_length);
             let mut output = 0;
-            for i in 0..pattern.len() {
-                let input = phase_input[i];
-                output += input * pattern[i];
+            let mut i = 0;
+            while i < pattern.len() {
+                if pattern[i] == 0 {
+                    let skip_amount = match i {
+                        0 => level - 1,
+                        _ => level,
+                    };
+                    i += skip_amount;
+                    continue;
+                }
+                output += phase_input[i] * pattern[i];
+                i += 1;
             }
             phase_output.push(output.abs() % 10);
         }
