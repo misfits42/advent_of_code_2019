@@ -14,21 +14,22 @@ impl FftPattern {
     }
 
     pub fn get_value(&self, index: usize) -> i8 {
-        // Trailing zero check
-        if index < self.level - 1 {
-            return 0;
-        }
-        // Edge case for level 1
-        if index < 3 && self.level == 1 {
-            match index {
-                0 => return 1,
-                1 => return 0,
-                2 => return -1,
-                _ => panic!("Mathematically shouldn't get to this case."),
+        if index < self.level * 4 - 1 {
+            // Trailing zeroes
+            if index < self.level - 1 {
+                return 0;
             }
+            let remainder = (index - (self.level - 1)) % (3 * self.level);
+            if remainder < self.level {
+                return 1;
+            } else if remainder < self.level * 2 {
+                return 0;
+            } else if remainder < self.level * 3 {
+                return -1;
+            }
+            panic!("Shouldn't reach here!");
         }
-        // Work out where the index sits in the repeating pattern of length: 4 * level
-        let remainder = index % (self.level * 4);
+        let remainder = (index - (4 * self.level - 1)) % (self.level * 4);
         if remainder < self.level {
             return 0;
         } else if remainder < self.level * 2 {
@@ -92,36 +93,6 @@ fn get_input_digits_from_filename(filename: String) -> Vec<i64> {
 
 fn generate_pattern(level: usize, length: usize) -> FftPattern {
     return FftPattern::new(level, length);
-    /*
-    let basic_pattern = vec![0, 1, 0, -1];
-    let mut basic_cycle = basic_pattern.iter().cycle();
-    let mut pattern: Vec<i8> = vec![0; length - level + 1];
-    let mut pattern_index = 0;
-    let mut first_zeroes_seen = false;
-    loop {
-        loop {
-            let next = *basic_cycle.next().unwrap();
-            if next == 0 {
-                if !first_zeroes_seen {
-                    first_zeroes_seen = true;
-                    continue;
-                }
-                pattern_index += level;
-                if pattern_index >= pattern.len() {
-                    return FftPattern::new(level-1, pattern);
-                }
-                continue;
-            }
-            for _ in 0..level {
-                pattern[pattern_index] = next;
-                pattern_index += 1;
-                if pattern_index >= pattern.len() {
-                    return FftPattern::new(level-1, pattern);
-                }
-            }
-        }
-    }
-    */
 }
 
 fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> Vec<i64> {
@@ -140,11 +111,10 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
     }
     for phase in 0..num_phases {
         for level in 1..signal_length+1 {
-            if level % 10 == 0 {
+            if level % 1 == 0 {
                 println!("Starting Phase {} Level {}...", phase, level);
             }
             let pattern = generate_pattern(level, signal_length);
-            println!("");
             let mut output = 0;
             let mut i = 0;
             while i < pattern.size() {
