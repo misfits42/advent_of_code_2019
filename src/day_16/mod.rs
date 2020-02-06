@@ -13,7 +13,7 @@ impl FftPattern {
         }
     }
 
-    pub fn get_value(&self, index: usize) -> i8 {
+    pub fn get_value(&self, index: usize) -> i64 {
         if index < self.level * 4 - 1 {
             // Trailing zeroes
             if index < self.level - 1 {
@@ -101,15 +101,17 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
     println!("Number of repeats of input: {}", num_repeats);
     println!("Signal length: {}", signal_length);
     println!("Total number of levels to process: {}", signal_length * 100);
-    let mut phase_output: Vec<i64> = vec![0; signal_length];
-    // Copy the input digits based on the specified number of repeats
-    let mut phase_input = Vec::with_capacity(signal_length);
-    for _ in 0..num_repeats {
+    // Input and output vectors will be cyclically rotated through so output isn't cloned at end of
+    // phase.
+    let mut phase_data: Vec<Vec<i64>> = vec![vec![0; signal_length]; 3];
+    let mut in_index = 0;
+    for repeat in 0..num_repeats {
         for i in 0..input_digits.len() {
-            phase_input.push(input_digits[i]);
+            phase_data[0][i * (repeat + 1)] = input_digits[i];
         }
     }
     for phase in 0..num_phases {
+        let out_index = (in_index + 1) % 3;
         for level in 1..signal_length + 1 {
             if level % 1000 == 0 {
                 println!("Starting Phase {} Level {}...", phase, level);
@@ -119,46 +121,37 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
             let mut i = 0;
             while i < pattern.size() {
                 let pattern_value = pattern.get_value(i);
-                match pattern_value {
-                    0 => {
-                        let skip_amount = match i {
-                            0 => level - 1,
-                            _ => level,
-                        };
-                        i += skip_amount;
-                        continue;
-                    },
-                    1 => {
-                        let mut temp = 0;
-                        for inc in 0..level {
-                            if i + inc >= signal_length {
-                                break;
-                            }
-                            temp += phase_input[i + inc];
+                if pattern_value == 0 {
+                    let skip_amount = match i {
+                        0 => level - 1,
+                        _ => level,
+                    };
+                    i += skip_amount;
+                    continue;
+                } else if pattern_value == 1 {
+                    let mut temp = 0;
+                    for inc in 0..level {
+                        let index_1 = i + inc;
+                        let index_2 = index_1 + 2 * level;
+                        if index_2 >= signal_length && index_1 >= signal_length {
+                            break;
+                        } else if index_2 >= signal_length {
+                            temp += phase_data[in_index][index_1];
+                        } else {
+                            temp += phase_data[in_index][index_1] - phase_data[in_index][index_2];
                         }
-                        output += temp;
-                    },
-                    -1 => {
-                        let mut temp = 0;
-                        for inc in 0..level {
-                            if i + inc >= signal_length {
-                                break;
-                            }
-                            temp -= phase_input[i + inc];
-                        }
-                        output += temp;
-                    },
-                    _ => {
-                        panic!("Shouldn't get here!");
                     }
+                    output += temp;
+                    i += level * 4;
+                } else {
+                    panic!("Shouldn't get here!");
                 }
-                i += level;
             }
-            phase_output[level - 1] = output.abs() % 10;
+            phase_data[out_index][level - 1] = output.abs() % 10;
         }
-        phase_input = phase_output.clone();
+        in_index = out_index;
     }
-    return phase_input;
+    return phase_data[in_index].clone();
 }
 
 #[cfg(test)]
