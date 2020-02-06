@@ -101,7 +101,7 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
     println!("Number of repeats of input: {}", num_repeats);
     println!("Signal length: {}", signal_length);
     println!("Total number of levels to process: {}", signal_length * 100);
-    let mut phase_output: Vec<i64> = Vec::with_capacity(signal_length);
+    let mut phase_output: Vec<i64> = vec![0; signal_length];
     // Copy the input digits based on the specified number of repeats
     let mut phase_input = Vec::with_capacity(signal_length);
     for _ in 0..num_repeats {
@@ -110,29 +110,53 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
         }
     }
     for phase in 0..num_phases {
-        for level in 1..signal_length+1 {
-            if level % 1 == 0 {
+        for level in 1..signal_length + 1 {
+            if level % 1000 == 0 {
                 println!("Starting Phase {} Level {}...", phase, level);
             }
             let pattern = generate_pattern(level, signal_length);
             let mut output = 0;
             let mut i = 0;
             while i < pattern.size() {
-                if pattern.get_value(i) == 0 {
-                    let skip_amount = match i {
-                        0 => level - 1,
-                        _ => level,
-                    };
-                    i += skip_amount;
-                    continue;
+                let pattern_value = pattern.get_value(i);
+                match pattern_value {
+                    0 => {
+                        let skip_amount = match i {
+                            0 => level - 1,
+                            _ => level,
+                        };
+                        i += skip_amount;
+                        continue;
+                    },
+                    1 => {
+                        let mut temp = 0;
+                        for inc in 0..level {
+                            if i + inc >= signal_length {
+                                break;
+                            }
+                            temp += phase_input[i + inc];
+                        }
+                        output += temp;
+                    },
+                    -1 => {
+                        let mut temp = 0;
+                        for inc in 0..level {
+                            if i + inc >= signal_length {
+                                break;
+                            }
+                            temp -= phase_input[i + inc];
+                        }
+                        output += temp;
+                    },
+                    _ => {
+                        panic!("Shouldn't get here!");
+                    }
                 }
-                output += phase_input[i] * (pattern.get_value(i) as i64);
-                i += 1;
+                i += level;
             }
-            phase_output.push(output.abs() % 10);
+            phase_output[level - 1] = output.abs() % 10;
         }
         phase_input = phase_output.clone();
-        phase_output.clear();
     }
     return phase_input;
 }
