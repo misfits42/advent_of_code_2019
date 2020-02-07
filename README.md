@@ -19,7 +19,7 @@ This repo contains my solutions for Advent of Code 2019 (<https://adventofcode.c
 * Day 13: (#)(#)
 * Day 14: (#)(#)
 * Day 15: (#)(#)
-* Day 16: (#)( )
+* Day 16: (#)(#)
 * Day 17: ( )( )
 * Day 18: ( )( )
 * Day 19: ( )( )
