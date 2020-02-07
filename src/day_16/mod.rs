@@ -9,13 +9,17 @@ struct FftRangeSum {
 }
 
 impl FftRangeSum {
-    pub fn new(pattern_value: i64, init_index: usize, initial_sum: i64) -> Self {
+    pub fn new(pattern_value: i64, left_index: usize, right_index: usize, initial_sum: i64) -> Self {
         Self {
             pattern_value: pattern_value,
-            left_index: init_index,
-            right_index: init_index,
+            left_index: left_index,
+            right_index: right_index,
             sum: initial_sum,
         }
+    }
+
+    pub fn get_left_index(&self) -> usize {
+        return self.left_index;
     }
 
     pub fn get_right_index(&self) -> usize {
@@ -35,9 +39,39 @@ impl FftRangeSum {
     }
 
     /// Expands the FftRangeSum to the left and adds the new value on the left to its sum;
-    pub fn expand_left(&mut self, phase_input: &Vec<i64>) -> i64 {
-        self.left_index -= 1;
-        self.sum += phase_input[self.left_index] * self.pattern_value;
+    pub fn expand_left(&mut self, expand_by: usize, phase_input: &Vec<i64>) -> i64 {
+        self.left_index -= expand_by;
+        let mut add_amt = 0;
+        for i in self.left_index..(self.left_index + expand_by) {
+            add_amt += phase_input[i];
+        }
+        add_amt *= self.pattern_value;
+        self.sum += add_amt;
+        return self.sum;
+    }
+
+    pub fn update_left_and_right(&mut self, new_left: usize, new_right: usize, phase_input: &Vec<i64>) -> i64 {
+        let shift_left = self.left_index - new_left;
+        let shift_right = self.right_index - new_right;
+        self.left_index = new_left;
+        self.right_index = new_right;
+        // Calculate subtract amount
+        let mut subtract_amt = 0;
+        for i in self.right_index..(self.right_index + shift_right + 1) {
+            if i >= phase_input.len() - 1 {
+                continue;
+            }
+            subtract_amt += phase_input[i + 1];
+        }
+        subtract_amt *= self.pattern_value;
+        self.sum -= subtract_amt;
+        // Calculate add amount
+        let mut add_amt = 0;
+        for i in self.left_index..(self.left_index + shift_left) {
+            add_amt += phase_input[i];
+        }
+        add_amt *= self.pattern_value;
+        self.sum += add_amt;
         return self.sum;
     }
 
@@ -50,14 +84,23 @@ impl FftRangeSum {
         return self.sum;
     }
 
-    pub fn shift_left_and_shrink(&mut self, phase_input: &Vec<i64>) -> i64 {
-        self.left_index -= 1;
-        self.right_index -= 2;
+    pub fn shift_left_and_shrink(&mut self, shift_by: usize, phase_input: &Vec<i64>) -> i64 {
+        self.left_index -= shift_by;
+        self.right_index -= shift_by + 1;
         // Work out how much to adjust sum by from the two values shifted out of range.
-        let subtract_amt = (phase_input[self.right_index + 1] + phase_input[self.right_index + 2]) * self.pattern_value;
+        let mut subtract_amt = 0;
+        for i in self.right_index..(self.right_index + shift_by + 1) {
+            subtract_amt += phase_input[i + 1];
+        }
+        subtract_amt *= self.pattern_value;
         self.sum -= subtract_amt;
         // Add the new value shifted into on the left
-        self.sum += phase_input[self.left_index] * self.pattern_value;
+        let mut add_amt = 0;
+        for i in self.left_index..(self.left_index + shift_by) {
+            add_amt += phase_input[i];
+        }
+        add_amt *= self.pattern_value;
+        self.sum += add_amt;
         return self.sum;
     }
 }
@@ -182,70 +225,74 @@ fn perform_fft(input_digits: &Vec<i64>, num_repeats: usize, num_phases: u64) -> 
         let mut range_sums: Vec<FftRangeSum> = vec![];
         let out_index = (in_index + 1) % 3;
         for level in (1..signal_length + 1).rev() {
-            if level % 1000 == 0 {
+            if level % 1 == 0 {
                 println!("Starting Phase {} Level {}...", phase, level);
             }
             let pattern = generate_pattern(level, signal_length);
             let end_pattern_value = pattern.get_value(signal_length - 1);
             let mut output = 0;
 
-            if 3 * level - 1 < signal_length { // Beyond point where more then one non-zero stripe occurs
+            if 3 * level - 1 < signal_length { // Beyond point where more than one non-zero stripe occurs
+                // Shift existing range sums left by
                 for i in 0..range_sums.len() {
-                    output += range_sums[i].shift_left_and_shrink(&phase_data[in_index]);
-                }
-                let mut level_index = range_sums.last().unwrap().get_right_index() + 1;
-                while level_index < pattern.size() {
-                    let pattern_value = pattern.get_value(level_index);
-                    if pattern_value == 0 {
-                        let skip_amount = match level_index {
-                            0 => level - 1,
-                            _ => level,
-                        };
-                        level_index += skip_amount;
-                        continue;
-                    } else if pattern_value == -1 {
-                        let mut temp = 0;
-                        for inc in 0..level {
-                            let index_1 = level_index + inc;
-                            let index_2 = index_1 + 2 * level;
-                            if index_2 >= signal_length && index_1 >= signal_length {
-                                break;
-                            } else if index_2 >= signal_length {
-                                temp -= phase_data[in_index][index_1];
-                            } else {
-                                temp -= phase_data[in_index][index_1] - phase_data[in_index][index_2];
-                            }
-                        }
-                        output += temp;
-                        level_index += level * 4;
+                    let shift_amt = (i + 1) * 2 - 1;
+                    let new_expand_len = range_sums[i].get_range_length() + shift_amt;
+                    if range_sums[i].get_right_index() == signal_length-1 && new_expand_len > level {
+                        let new_left = range_sums[i].get_left_index() - shift_amt;
+                        let new_right = new_left + level - 1;
+                        output += range_sums[i].update_left_and_right(new_left, new_right, &phase_data[in_index]);
+                    } else if range_sums[i].get_range_length() + shift_amt < level {
+                        output += range_sums[i].expand_left(shift_amt, &phase_data[in_index]);
                     } else {
-                        panic!("Shouldn't get here!");
+                        output += range_sums[i].shift_left_and_shrink(shift_amt, &phase_data[in_index]);
                     }
+                }
+                // Add new ranges
+                let mut left_index = range_sums.last().unwrap().get_right_index() + level + 1;
+                while left_index < signal_length {
+                    let mut right_index = left_index + level - 1;
+                    if right_index >= signal_length {
+                        right_index = signal_length - 1;
+                    }
+                    let pattern_value = pattern.get_value(left_index);
+                    let mut init_sum = 0;
+                    for i in left_index..right_index+1 {
+                        init_sum += phase_data[in_index][i];
+                    }
+                    init_sum *= pattern_value;
+                    let new_fft_range_sum = FftRangeSum::new(pattern_value, left_index, right_index, init_sum);
+                    // Add sum from new range to output
+                    output += new_fft_range_sum.get_sum();
+                    range_sums.push(new_fft_range_sum);
+                    // Move the left index along
+                    left_index = right_index + level + 1;
                 }
             } else {
                 if end_pattern_value == 0 { // All ranges to shift left
                     last_pattern_value_seen = 0;
                     for i in 0..range_sums.len() {
+                        let shift_amt = (i + 1) * 2 - 1;
                         if range_sums[i].get_range_length() == level {
                             output += range_sums[i].shift_left_no_shrink(&phase_data[in_index]);
                         } else {
-                            output += range_sums[i].shift_left_and_shrink(&phase_data[in_index]);
+                            output += range_sums[i].shift_left_and_shrink(shift_amt, &phase_data[in_index]);
                         }
                     }
                 } else {
                     if last_pattern_value_seen == 0 { // Add new range sum to end of vector
                         last_pattern_value_seen = end_pattern_value;
                         let initial_sum = phase_data[in_index][signal_length - 1] * end_pattern_value;
-                        let new_fft_range_sum = FftRangeSum::new(end_pattern_value, signal_length - 1, initial_sum);
+                        let new_fft_range_sum = FftRangeSum::new(end_pattern_value, signal_length - 1, signal_length - 1, initial_sum);
                         output += new_fft_range_sum.get_sum();
                         range_sums.push(new_fft_range_sum);
                     } else if last_pattern_value_seen == range_sums.last().unwrap().get_pattern_value() {
                         // expand the last range sum
-                        output += range_sums.last_mut().unwrap().expand_left(&phase_data[in_index]);
+                        output += range_sums.last_mut().unwrap().expand_left(1, &phase_data[in_index]);
                     }
                     // Shift existing range sums
                     for i in 0..(range_sums.len() - 1) {
-                        output += range_sums[i].shift_left_and_shrink(&phase_data[in_index]);
+                        let shift_amt = (i + 1) * 2 - 1;
+                        output += range_sums[i].shift_left_and_shrink(shift_amt, &phase_data[in_index]);
                     }
                 }
             }
