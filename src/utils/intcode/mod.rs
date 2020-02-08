@@ -22,6 +22,7 @@ const PARAM_MODE_RELATIVE: i64 = 2;
 const MEMORY_SIZE: usize = 10000;
 
 /// Represents the state of an Intcode Machine.
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub struct IntcodeMachine {
     prog_c: usize,
     memory: Vec<i64>,

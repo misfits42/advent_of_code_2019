@@ -15,6 +15,7 @@ pub mod day_13;
 pub mod day_14;
 pub mod day_15;
 pub mod day_16;
+pub mod day_17;
 // Other required declarations
 pub mod utils;
 // Declare itertools here with tag so its macros can be used in project
@@ -27,6 +28,6 @@ extern crate primes;
 extern crate ndarray;
 
 fn main() {
-    let solution = day_16::solution_part_2(String::from("./input/day_16/input.txt"));
+    let solution = day_17::solution_part_1(String::from("./input/day_17/input.txt"));
     println!("Solution: {:?}", solution);
 }
