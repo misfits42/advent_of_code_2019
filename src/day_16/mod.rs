@@ -322,6 +322,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_d16_p1_solution() {
+        let result = solution_part_1(String::from("./input/day_16/input.txt"));
+        assert_eq!("27229269", result);
+    }
+
+    #[test]
+    fn test_d16_p2_solution() {
+        let result = solution_part_2(String::from("./input/day_16/input.txt"));
+        assert_eq!("26857164", result);
+    }
+
+    #[test]
     fn test_d16_p1_example_01() {
         let result = get_fft_result_string(String::from("./input/day_16/test/test_01.txt"), 1, 100);
         assert_eq!("24176176", result);
