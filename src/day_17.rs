@@ -1,12 +1,30 @@
 use super::utils::intcode::IntcodeMachine;
 use std::collections::VecDeque;
-use std::collections::HashSet;
 use std::collections::HashMap;
+use std::cmp::Ordering;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd)]
 struct Point {
     x: i64,
     y: i64,
+}
+
+impl Ord for Point {
+    fn cmp (&self, other: &Self) -> Ordering {
+        if self.y < other.y {
+            return Ordering::Less;
+        } else if self.y == other.y {
+            if self.x < other.x {
+                return Ordering::Less;
+            } else if self.x == other.x {
+                return Ordering::Equal;
+            } else {
+                return Ordering::Greater;
+            }
+        } else {
+            return Ordering::Greater;
+        }
+    }
 }
 
 impl Point {
@@ -38,10 +56,10 @@ impl Point {
 #[allow(dead_code)]
 struct AsciiMachine {
     intcode_computer: IntcodeMachine,
-    scaffold_locations: HashSet<Point>,
+    scaffold_locations: Vec<Point>,
     map: HashMap<Point, char>,
     robot_location: Point,
-    scaffold_intersections: HashSet<Point>,
+    scaffold_intersections: Vec<Point>,
 }
 
 impl AsciiMachine {
@@ -49,7 +67,7 @@ impl AsciiMachine {
         let mut intcode_computer = IntcodeMachine::new(ascii_program.clone(), VecDeque::new());
         intcode_computer.execute_program();
         let mut scan_location = Point::new(0, 0);
-        let mut scaffold_locations: HashSet<Point> = HashSet::new();
+        let mut scaffold_locations: Vec<Point> = vec![];
         let mut map: HashMap<Point, char> = HashMap::new();
         let mut robot_location = Point::new(-1, -1);
         loop {
@@ -66,9 +84,9 @@ impl AsciiMachine {
                     panic!("Already have a location for the vacuum robot.");
                 }
                 robot_location = scan_location;
-                scaffold_locations.insert(scan_location);
+                scaffold_locations.push(scan_location);
             } else if output_char == '#' {
-                scaffold_locations.insert(scan_location);
+                scaffold_locations.push(scan_location);
             }
             map.insert(scan_location, output_char);
             // Update scan location after recording location and character
@@ -79,7 +97,7 @@ impl AsciiMachine {
             robot_location: robot_location,
             map: map,
             scaffold_locations: scaffold_locations,
-            scaffold_intersections: HashSet::new(),
+            scaffold_intersections: vec![],
         };
     }
 
@@ -94,7 +112,7 @@ impl AsciiMachine {
                 }
             }
             if is_intersection {
-                self.scaffold_intersections.insert(*point);
+                self.scaffold_intersections.push(*point);
             }
         }
     }
@@ -106,12 +124,25 @@ impl AsciiMachine {
         }
         return sum;
     }
+
+    pub fn render_map(&self) {
+        let mut points: Vec<Point> = self.map.keys().map(|x| *x).collect();
+        points.sort_by(|a, b| a.cmp(b));
+        for p in points {
+            if p.x == 0 && p.y > 0 {
+                print!("\n");
+            }
+            let c = self.map.get(&p).unwrap();
+            print!("{}", c);
+        }
+    }
 }
 
 pub fn solution_part_1(filename: String) -> i64 {
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut ascii_machine = AsciiMachine::new(ascii_program);
     ascii_machine.find_scaffold_intersections();
+    ascii_machine.render_map();
     let align_param_sum = ascii_machine.calculate_alignment_parameter_sum();
     return align_param_sum;
 }
