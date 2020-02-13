@@ -3,10 +3,44 @@ use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::cmp::Ordering;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd)]
 struct Point {
     x: i64,
     y: i64,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+enum Direction {
+    North,
+    South,
+    East,
+    West,
+}
+
+impl Direction {
+    pub fn get_rotated_direction(&self, turn_direction: TurnDirection) -> Direction {
+        if turn_direction == TurnDirection::Left {
+            match self {
+                Direction::North => Direction::West,
+                Direction::South => Direction::East,
+                Direction::East => Direction::North,
+                Direction::West => Direction::South,
+            }
+        } else {
+            match self {
+                Direction::North => Direction::East,
+                Direction::South => Direction::West,
+                Direction::East => Direction::South,
+                Direction::West => Direction::North,
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+enum TurnDirection {
+    Left,
+    Right,
 }
 
 impl Ord for Point {
@@ -59,10 +93,14 @@ struct AsciiMachine {
     scaffold_locations: Vec<Point>,
     map: HashMap<Point, char>,
     robot_location: Point,
+    robot_direction: Direction,
     scaffold_intersections: Vec<Point>,
+    map_width: i64,
+    map_height: i64,
 }
 
 impl AsciiMachine {
+    /// Creates a new ASCII machine and processes the camera view to determine the scaffold map.
     pub fn new(ascii_program: Vec<i64>) -> Self {
         let mut intcode_computer = IntcodeMachine::new(ascii_program.clone(), VecDeque::new());
         intcode_computer.execute_program();
@@ -70,19 +108,32 @@ impl AsciiMachine {
         let mut scaffold_locations: Vec<Point> = vec![];
         let mut map: HashMap<Point, char> = HashMap::new();
         let mut robot_location = Point::new(-1, -1);
+        let mut robot_direction = Direction::North;
+        let mut map_width = 0;
+        let mut map_height = 0;
         loop {
             if intcode_computer.is_output_empty() {
+                // Reduce count by 1 to get actual answer - camera provides 1 too many newlines!
+                map_height -= 1;
                 break;
             }
             let output_char = (intcode_computer.get_output_and_remove() as u8) as char;
             if output_char == '\n' { // Line feed received
                 scan_location.x = 0;
                 scan_location.y += 1;
+                map_height += 1;
                 continue;
             } else if "<>^v".contains(output_char) { // Observed location of robot
                 if robot_location.x != -1 && robot_location.y != -1 {
                     panic!("Already have a location for the vacuum robot.");
                 }
+                robot_direction = match output_char {
+                    '<' => Direction::West,
+                    '>' => Direction::East,
+                    '^' => Direction::North,
+                    'v' => Direction::South,
+                    _ => panic!("Shouldn't get here!"),
+                };
                 robot_location = scan_location;
                 scaffold_locations.push(scan_location);
             } else if output_char == '#' {
@@ -91,13 +142,19 @@ impl AsciiMachine {
             map.insert(scan_location, output_char);
             // Update scan location after recording location and character
             scan_location.x += 1;
+            if map_height == 0 {
+                map_width += 1;
+            }
         }
         return Self {
             intcode_computer: intcode_computer,
             robot_location: robot_location,
+            robot_direction: robot_direction,
             map: map,
             scaffold_locations: scaffold_locations,
             scaffold_intersections: vec![],
+            map_width: map_width,
+            map_height: map_height,
         };
     }
 
@@ -136,8 +193,76 @@ impl AsciiMachine {
             print!("{}", c);
         }
     }
+
+    /// Finds the path required to traverse the entire scaffold, including turns required and number
+    /// of steps taken after each turn.
+    pub fn find_path_to_traverse_scaffold(&self) -> Vec<String> {
+        let mut path: Vec<String> = vec![];
+        let mut current_direction = self.robot_direction;
+        let mut current_location = self.robot_location;
+        let mut current_move_count = 0;
+        loop {
+            if !self.check_target_square_for_scaffold(current_direction, current_location) {
+                if current_move_count > 0 {
+                    path.push(current_move_count.to_string());
+                    current_move_count = 0;
+                }
+                // Check left turn
+                let temp_left = current_direction.get_rotated_direction(TurnDirection::Left);
+                let temp_right = current_direction.get_rotated_direction(TurnDirection::Right);
+                if self.check_target_square_for_scaffold(temp_left, current_location) {
+                    current_direction = temp_left;
+                    current_direction.get_rotated_direction(TurnDirection::Left);
+                    path.push(String::from("L"));
+                } else if self.check_target_square_for_scaffold(temp_right, current_location) {
+                    current_direction = temp_right;
+                    current_direction.get_rotated_direction(TurnDirection::Right);
+                    path.push(String::from("R"));
+                } else { // No more turns possible - we have traversed all the scaffold.
+                    return path;
+                }
+            } else {
+                current_move_count += 1;
+                match current_direction {
+                    Direction::North => current_location.y -= 1,
+                    Direction::South => current_location.y += 1,
+                    Direction::East => current_location.x += 1,
+                    Direction::West => current_location.x -= 1,
+                };
+            }
+        }
+    }
+
+    /// Checks if the next square in the given direction contains scaffold or not.
+    pub fn check_target_square_for_scaffold(&self, current_direction: Direction, current_location: Point) -> bool {
+        let mut target_square = current_location;
+        match current_direction {
+            Direction::North => {
+                target_square.y -= 1;
+            },
+            Direction::South => {
+                target_square.y += 1;
+            },
+            Direction::East => {
+                target_square.x += 1;
+            },
+            Direction::West => {
+                target_square.x -= 1;
+            },
+        }
+        if target_square.x < 0 || target_square.x >= self.map_width || target_square.y < 0 || target_square.y >= self.map_height {
+            return false;
+        }
+        let target_char = match self.map.get(&target_square) {
+            Some(v) => *v,
+            None => panic!("Bad target square: [{:?}]. Map width is {}. Map height is {}.", target_square, self.map_width, self.map_height),
+        };
+        // let target_char = *self.map.get(&target_square).unwrap();
+        return target_char == '#';
+    }
 }
 
+/// Solution for Day 17 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> i64 {
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut ascii_machine = AsciiMachine::new(ascii_program);
@@ -145,4 +270,15 @@ pub fn solution_part_1(filename: String) -> i64 {
     ascii_machine.render_map();
     let align_param_sum = ascii_machine.calculate_alignment_parameter_sum();
     return align_param_sum;
+}
+
+/// Solution for Day 17 Part 2 challenge.
+pub fn solution_part_2(filename: String) -> i64 {
+    // Load up the ascii program to get camera view of scaffold
+    let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
+    let mut ascii_machine = AsciiMachine::new(ascii_program);
+    let path = ascii_machine.find_path_to_traverse_scaffold();
+    println!("{:?}", path);
+    // Solution not finalised!
+    unimplemented!();
 }

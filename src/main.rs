@@ -28,6 +28,6 @@ extern crate primes;
 extern crate ndarray;
 
 fn main() {
-    let solution = day_17::solution_part_1(String::from("./input/day_17/input.txt"));
+    let solution = day_17::solution_part_2(String::from("./input/day_17/input.txt"));
     println!("Solution: {:?}", solution);
 }
