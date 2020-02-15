@@ -114,14 +114,12 @@ impl AsciiMachine {
         loop {
             if intcode_computer.is_output_empty() {
                 // Reduce count by 1 to get actual answer - camera provides 1 too many newlines!
-                map_height -= 1;
                 break;
             }
             let output_char = (intcode_computer.get_output_and_remove() as u8) as char;
             if output_char == '\n' { // Line feed received
                 scan_location.x = 0;
                 scan_location.y += 1;
-                map_height += 1;
                 continue;
             } else if "<>^v".contains(output_char) { // Observed location of robot
                 if robot_location.x != -1 && robot_location.y != -1 {
@@ -141,10 +139,11 @@ impl AsciiMachine {
             }
             map.insert(scan_location, output_char);
             // Update scan location after recording location and character
-            scan_location.x += 1;
-            if map_height == 0 {
-                map_width += 1;
+            if scan_location.y == 0 {
+                map_width = scan_location.x;
             }
+            map_height = scan_location.y;
+            scan_location.x += 1;
         }
         return Self {
             intcode_computer: intcode_computer,
@@ -153,8 +152,8 @@ impl AsciiMachine {
             map: map,
             scaffold_locations: scaffold_locations.clone(),
             scaffold_intersections: Self::find_scaffold_intersections(scaffold_locations.clone()),
-            map_width: map_width,
-            map_height: map_height,
+            map_width: map_width + 1, // adjust for zero-indexed map location
+            map_height: map_height + 1, // adjust for zero-indexed map location
         };
     }
 
@@ -190,11 +189,12 @@ impl AsciiMachine {
         points.sort_by(|a, b| a.cmp(b));
         for p in points {
             if p.x == 0 && p.y > 0 {
-                print!("\n");
+                println!("");
             }
             let c = self.map.get(&p).unwrap();
             print!("{}", c);
         }
+        println!("");
     }
 
     /// Finds the path required to traverse the entire scaffold, including turns required and number
@@ -268,7 +268,7 @@ impl AsciiMachine {
 /// Solution for Day 17 Part 1 challenge.
 pub fn solution_part_1(filename: String) -> i64 {
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
-    let mut ascii_machine = AsciiMachine::new(ascii_program);
+    let ascii_machine = AsciiMachine::new(ascii_program);
     ascii_machine.render_map();
     let align_param_sum = ascii_machine.calculate_alignment_parameter_sum();
     return align_param_sum;
@@ -279,6 +279,7 @@ pub fn solution_part_2(filename: String) -> i64 {
     // Load up the ascii program to get camera view of scaffold
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut ascii_machine = AsciiMachine::new(ascii_program);
+    ascii_machine.render_map();
     let path = ascii_machine.find_path_to_traverse_scaffold();
     println!("{:?}", path);
     // Solution not finalised!
