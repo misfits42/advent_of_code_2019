@@ -271,7 +271,7 @@ impl AsciiMachine {
 
     pub fn get_movement_commands(&self) -> Vec<String> {
         let mut commands: Vec<String> = vec![];
-        let mut path = self.get_expanded_traverse_path(); // self.find_path_to_traverse_scaffold(false);
+        let path = self.find_path_to_traverse_scaffold(true);
         for a_end in 0..path.len()-2 {
             let b_start = a_end + 1;
             for b_end in b_start..path.len()-1 {
@@ -289,11 +289,28 @@ impl AsciiMachine {
                 }
                 new_path = new_path.replace(&b_command, "");
                 // Check if new_path now contains only repeated substring - C command is root string
-                unimplemented!();
+                let c_command = Self::find_repeat_root_substring(new_path);
+                if !c_command.is_empty() {
+                    commands.push(a_command);
+                    commands.push(b_command);
+                    commands.push(c_command);
+                    return commands;
+                }
             }
         }
-        // unimplemented!();
-        return commands;
+        return vec![];
+    }
+
+    /// Checks if the input string is solely made up of a repeating substring. If so, the root
+    /// substring is returned.
+    fn find_repeat_root_substring(input: String) -> String {
+        for end in 0..(input.len()/2 + 1) {
+            let check_input = input.clone().replace(&input[0..end], "");
+            if check_input.is_empty() {
+                return input[0..end].to_owned();
+            }
+        }
+        return String::new();
     }
 
     /// Checks if the next square in the given direction contains scaffold or not.
@@ -340,9 +357,10 @@ pub fn solution_part_2(filename: String) -> i64 {
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut ascii_machine = AsciiMachine::new(ascii_program);
     ascii_machine.render_map();
-    // let path = ascii_machine.find_path_to_traverse_scaffold(true);
-    ascii_machine.get_movement_commands();
-    // println!("{:?}", path);
+    let path = ascii_machine.find_path_to_traverse_scaffold(true);
+    let commands = ascii_machine.get_movement_commands();
+    println!("{:?}", path);
+    println!("{:?}", commands);
     // Solution not finalised!
     unimplemented!();
 }
