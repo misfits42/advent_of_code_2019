@@ -3,6 +3,8 @@ use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::cmp::Ordering;
 
+use regex::Regex;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd)]
 struct Point {
     x: i64,
@@ -199,15 +201,22 @@ impl AsciiMachine {
 
     /// Finds the path required to traverse the entire scaffold, including turns required and number
     /// of steps taken after each turn.
-    pub fn find_path_to_traverse_scaffold(&self) -> Vec<String> {
+    pub fn find_path_to_traverse_scaffold(&self, turn_and_moves_combined: bool) -> Vec<String> {
         let mut path: Vec<String> = vec![];
         let mut current_direction = self.robot_direction;
         let mut current_location = self.robot_location;
         let mut current_move_count = 0;
+        let mut holder = String::from("");
         loop {
             if !self.check_target_square_for_scaffold(current_direction, current_location) {
                 if current_move_count > 0 {
-                    path.push(current_move_count.to_string());
+                    if !turn_and_moves_combined {
+                        path.push(current_move_count.to_string());
+                    } else {
+                        holder = format!("{}{}", holder.clone(), current_move_count.to_string());
+                        path.push(holder.clone());
+                        holder.clear();
+                    }
                     current_move_count = 0;
                 }
                 // Check left turn
@@ -216,11 +225,19 @@ impl AsciiMachine {
                 if self.check_target_square_for_scaffold(temp_left, current_location) {
                     current_direction = temp_left;
                     current_direction.get_rotated_direction(TurnDirection::Left);
-                    path.push(String::from("L"));
+                    if !turn_and_moves_combined {
+                        path.push(String::from("L"));
+                    } else {
+                        holder.push_str("L");
+                    }
                 } else if self.check_target_square_for_scaffold(temp_right, current_location) {
                     current_direction = temp_right;
                     current_direction.get_rotated_direction(TurnDirection::Right);
-                    path.push(String::from("R"));
+                    if !turn_and_moves_combined {
+                        path.push(String::from("R"));
+                    } else {
+                        holder.push_str("R");
+                    }
                 } else { // No more turns possible - we have traversed all the scaffold.
                     return path;
                 }
@@ -234,6 +251,49 @@ impl AsciiMachine {
                 };
             }
         }
+    }
+
+    pub fn get_expanded_traverse_path(&self) -> Vec<String> {
+        let mut out: Vec<String> = vec![];
+        let path = self.find_path_to_traverse_scaffold(false);
+        for item in path {
+            if item.contains("L") || item.contains("R") {
+                out.push(item);
+            } else {
+                let moves = item.parse::<u64>().unwrap();
+                for _ in 0..moves {
+                    out.push("1".to_owned());
+                }
+            }
+        }
+        return out;
+    }
+
+    pub fn get_movement_commands(&self) -> Vec<String> {
+        let mut commands: Vec<String> = vec![];
+        let mut path = self.get_expanded_traverse_path(); // self.find_path_to_traverse_scaffold(false);
+        for a_end in 0..path.len()-2 {
+            let b_start = a_end + 1;
+            for b_end in b_start..path.len()-1 {
+                let mut new_path = path.clone().join("");
+                // Remove all of the potential A move blocks
+                let mut a_command = String::new();
+                for i in 0..a_end+1 {
+                    a_command.push_str(&path[i]);
+                }
+                new_path = new_path.replace(&a_command, "");
+                // Remove all of potential B move blocks
+                let mut b_command = String::new();
+                for i in b_start..b_end+1 {
+                    b_command.push_str(&path[i]);
+                }
+                new_path = new_path.replace(&b_command, "");
+                // Check if new_path now contains only repeated substring - C command is root string
+                unimplemented!();
+            }
+        }
+        // unimplemented!();
+        return commands;
     }
 
     /// Checks if the next square in the given direction contains scaffold or not.
@@ -280,8 +340,9 @@ pub fn solution_part_2(filename: String) -> i64 {
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut ascii_machine = AsciiMachine::new(ascii_program);
     ascii_machine.render_map();
-    let path = ascii_machine.find_path_to_traverse_scaffold();
-    println!("{:?}", path);
+    // let path = ascii_machine.find_path_to_traverse_scaffold(true);
+    ascii_machine.get_movement_commands();
+    // println!("{:?}", path);
     // Solution not finalised!
     unimplemented!();
 }
