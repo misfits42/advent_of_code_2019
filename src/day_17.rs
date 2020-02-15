@@ -151,27 +151,30 @@ impl AsciiMachine {
             robot_location: robot_location,
             robot_direction: robot_direction,
             map: map,
-            scaffold_locations: scaffold_locations,
-            scaffold_intersections: vec![],
+            scaffold_locations: scaffold_locations.clone(),
+            scaffold_intersections: Self::find_scaffold_intersections(scaffold_locations.clone()),
             map_width: map_width,
             map_height: map_height,
         };
     }
 
     /// Finds the scaffold intersections and records the locations within the ASCII computer.
-    pub fn find_scaffold_intersections(&mut self) {
-        for point in self.scaffold_locations.iter() {
+    fn find_scaffold_intersections(scaffold_locations: Vec<Point>) -> Vec<Point> {
+        let mut scaffold_intersections: Vec<Point> = vec![];
+        for point in scaffold_locations.iter() {
             let surrounding_points = point.calculate_surrounding_points();
             let mut is_intersection = true;
             for surr in surrounding_points {
-                if !self.scaffold_locations.contains(&surr) {
+                if !scaffold_locations.contains(&surr) {
                     is_intersection = false;
+                    break;
                 }
             }
             if is_intersection {
-                self.scaffold_intersections.push(*point);
+                scaffold_intersections.push(*point);
             }
         }
+        return scaffold_intersections;
     }
 
     pub fn calculate_alignment_parameter_sum(&self) -> i64 {
@@ -266,7 +269,6 @@ impl AsciiMachine {
 pub fn solution_part_1(filename: String) -> i64 {
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut ascii_machine = AsciiMachine::new(ascii_program);
-    ascii_machine.find_scaffold_intersections();
     ascii_machine.render_map();
     let align_param_sum = ascii_machine.calculate_alignment_parameter_sum();
     return align_param_sum;
@@ -281,4 +283,15 @@ pub fn solution_part_2(filename: String) -> i64 {
     println!("{:?}", path);
     // Solution not finalised!
     unimplemented!();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_day_17_p1_solution() {
+        let result = solution_part_1(String::from("./input/day_17/input.txt"));
+        assert_eq!(3936, result);
+    }
 }
