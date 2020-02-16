@@ -1,9 +1,10 @@
 use super::utils::intcode::IntcodeMachine;
+use super::utils::strings;
 use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::cmp::Ordering;
 
-use regex::Regex;
+use itertools::Itertools;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd)]
 struct Point {
@@ -289,11 +290,41 @@ impl AsciiMachine {
                 }
                 new_path = new_path.replace(&b_command, "");
                 // Check if new_path now contains only repeated substring - C command is root string
-                let c_command = Self::find_repeat_root_substring(new_path);
+                let mut c_command = strings::find_repeat_substring(new_path, 9);
+                // Process commands
                 if !c_command.is_empty() {
+                    // Generate the main routine first
+                    let mut main_routine = path.clone().join("");
+                    main_routine = main_routine.replace(&a_command, "A");
+                    main_routine = main_routine.replace(&b_command, "B");
+                    main_routine = main_routine.replace(&c_command, "C");
+                    main_routine = main_routine.chars().join(",");
+                    main_routine.push('\n');
+                    if main_routine.len() <= 21 {
+                        println!("[+] Generated main routine - good length!");
+                    }
+                    commands.push(main_routine);
+                    // Generate A sub-routine
+                    a_command = Self::format_subroutine_string(a_command);
+                    if a_command.len() <= 21 {
+                        println!("[+] Generated subroutine A - good length!");
+                    }
                     commands.push(a_command);
+                    // Generate B sub-routine
+                    b_command = Self::format_subroutine_string(b_command);
+                    if b_command.len() <= 21 {
+                        println!("[+] Generated subroutine B - good length!");
+                    }
                     commands.push(b_command);
+                    // Generate C sub-routine
+                    c_command = Self::format_subroutine_string(c_command);
+                    if c_command.len() <= 21 {
+                        println!("[+] Generated subroutine C - good length!");
+                    }
                     commands.push(c_command);
+                    // Camera feed state
+                    commands.push("n\n".to_owned());
+                    println!("[+] Continuous camera feed - NOT ENABLED!");
                     return commands;
                 }
             }
@@ -301,16 +332,12 @@ impl AsciiMachine {
         return vec![];
     }
 
-    /// Checks if the input string is solely made up of a repeating substring. If so, the root
-    /// substring is returned.
-    fn find_repeat_root_substring(input: String) -> String {
-        for end in 0..(input.len()/2 + 1) {
-            let check_input = input.clone().replace(&input[0..end], "");
-            if check_input.is_empty() {
-                return input[0..end].to_owned();
-            }
-        }
-        return String::new();
+    fn format_subroutine_string(input: String) -> String {
+        let mut output = input.clone();
+        output = output.replace("L", ",L,");
+        output = output.replace("R", ",R,");
+        output.push('\n');
+        return output[1..].to_owned();
     }
 
     /// Checks if the next square in the given direction contains scaffold or not.
@@ -356,13 +383,15 @@ pub fn solution_part_2(filename: String) -> i64 {
     // Load up the ascii program to get camera view of scaffold
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut ascii_machine = AsciiMachine::new(ascii_program);
-    ascii_machine.render_map();
-    let path = ascii_machine.find_path_to_traverse_scaffold(true);
     let commands = ascii_machine.get_movement_commands();
-    println!("{:?}", path);
-    println!("{:?}", commands);
-    // Solution not finalised!
-    unimplemented!();
+    for item in commands {
+        for c in item.chars() {
+            ascii_machine.intcode_computer.add_input(c as i64);
+        }
+    }
+    ascii_machine.intcode_computer.execute_program();
+    let dust_collected = ascii_machine.intcode_computer.get_output_and_remove();
+    return dust_collected;
 }
 
 #[cfg(test)]
