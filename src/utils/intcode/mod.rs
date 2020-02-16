@@ -47,6 +47,11 @@ impl IntcodeMachine {
         }
     }
 
+    /// Returns a copy of the Intcode computer's memory.
+    pub fn get_memory_dump(&self) -> Vec<i64> {
+        return self.memory.clone();
+    }
+
     /// Copies the given initial memory into a vector with maximum memory size of machine, and
     /// returns the result.
     fn create_initial_memory_array(initial_memory: Vec<i64>) -> Vec<i64> {

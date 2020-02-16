@@ -1,8 +1,8 @@
 use super::utils::intcode::IntcodeMachine;
 use super::utils::strings;
-use std::collections::VecDeque;
-use std::collections::HashMap;
 use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::collections::VecDeque;
 
 use itertools::Itertools;
 
@@ -21,6 +21,7 @@ enum Direction {
 }
 
 impl Direction {
+    /// Calculates the next direction if a turn is made in the given direction.
     pub fn get_rotated_direction(&self, turn_direction: TurnDirection) -> Direction {
         if turn_direction == TurnDirection::Left {
             match self {
@@ -47,7 +48,7 @@ enum TurnDirection {
 }
 
 impl Ord for Point {
-    fn cmp (&self, other: &Self) -> Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         if self.y < other.y {
             return Ordering::Less;
         } else if self.y == other.y {
@@ -66,10 +67,7 @@ impl Ord for Point {
 
 impl Point {
     pub fn new(x: i64, y: i64) -> Self {
-        Self {
-            x: x,
-            y: y,
-        }
+        Self { x: x, y: y }
     }
 
     /// Calculates the four points that would surround self.
@@ -85,15 +83,15 @@ impl Point {
         return vec![up, down, left, right];
     }
 
+    /// Calculates the product of the point's X and Y co-ordinates.
     pub fn calculate_alignment_parameter(&self) -> i64 {
         return self.x * self.y;
     }
 }
 
-#[allow(dead_code)]
 struct AsciiMachine {
     intcode_computer: IntcodeMachine,
-    scaffold_locations: Vec<Point>,
+    intcode_computer_orig: IntcodeMachine,
     map: HashMap<Point, char>,
     robot_location: Point,
     robot_direction: Direction,
@@ -106,6 +104,7 @@ impl AsciiMachine {
     /// Creates a new ASCII machine and processes the camera view to determine the scaffold map.
     pub fn new(ascii_program: Vec<i64>) -> Self {
         let mut intcode_computer = IntcodeMachine::new(ascii_program.clone(), VecDeque::new());
+        let intcode_computer_orig = intcode_computer.clone();
         intcode_computer.execute_program();
         let mut scan_location = Point::new(0, 0);
         let mut scaffold_locations: Vec<Point> = vec![];
@@ -116,15 +115,16 @@ impl AsciiMachine {
         let mut map_height = 0;
         loop {
             if intcode_computer.is_output_empty() {
-                // Reduce count by 1 to get actual answer - camera provides 1 too many newlines!
                 break;
             }
             let output_char = (intcode_computer.get_output_and_remove() as u8) as char;
-            if output_char == '\n' { // Line feed received
+            if output_char == '\n' {
+                // Line feed received
                 scan_location.x = 0;
                 scan_location.y += 1;
                 continue;
-            } else if "<>^v".contains(output_char) { // Observed location of robot
+            } else if "<>^v".contains(output_char) {
+                // Observed location of robot
                 if robot_location.x != -1 && robot_location.y != -1 {
                     panic!("Already have a location for the vacuum robot.");
                 }
@@ -150,14 +150,21 @@ impl AsciiMachine {
         }
         return Self {
             intcode_computer: intcode_computer,
+            intcode_computer_orig: intcode_computer_orig,
             robot_location: robot_location,
             robot_direction: robot_direction,
             map: map,
-            scaffold_locations: scaffold_locations.clone(),
             scaffold_intersections: Self::find_scaffold_intersections(scaffold_locations.clone()),
             map_width: map_width + 1, // adjust for zero-indexed map location
             map_height: map_height + 1, // adjust for zero-indexed map location
         };
+    }
+
+    /// Resets the state of the internal Intcode computer and awakens the vacuum robot.
+    pub fn awaken_robot(&mut self) {
+        let mut initial_memory = self.intcode_computer_orig.get_memory_dump();
+        initial_memory[0] = 2;
+        self.intcode_computer = IntcodeMachine::new(initial_memory, VecDeque::new());
     }
 
     /// Finds the scaffold intersections and records the locations within the ASCII computer.
@@ -239,7 +246,8 @@ impl AsciiMachine {
                     } else {
                         holder.push_str("R");
                     }
-                } else { // No more turns possible - we have traversed all the scaffold.
+                } else {
+                    // No more turns possible - we have traversed all the scaffold.
                     return path;
                 }
             } else {
@@ -254,38 +262,31 @@ impl AsciiMachine {
         }
     }
 
-    pub fn get_expanded_traverse_path(&self) -> Vec<String> {
-        let mut out: Vec<String> = vec![];
-        let path = self.find_path_to_traverse_scaffold(false);
-        for item in path {
-            if item.contains("L") || item.contains("R") {
-                out.push(item);
-            } else {
-                let moves = item.parse::<u64>().unwrap();
-                for _ in 0..moves {
-                    out.push("1".to_owned());
-                }
-            }
-        }
-        return out;
-    }
-
+    /// Gets the movement command strings that need to be provided to the robot in order to traverse
+    /// all scaffold locations at least once.
+    ///
+    /// Order of movement commands:
+    /// - Main routine
+    /// - Subroutine A
+    /// - Subroutine B
+    /// - Subroutine C
+    /// - Camera enabled (y/n)
     pub fn get_movement_commands(&self) -> Vec<String> {
         let mut commands: Vec<String> = vec![];
         let path = self.find_path_to_traverse_scaffold(true);
-        for a_end in 0..path.len()-2 {
+        for a_end in 0..path.len() - 2 {
             let b_start = a_end + 1;
-            for b_end in b_start..path.len()-1 {
+            for b_end in b_start..path.len() - 1 {
                 let mut new_path = path.clone().join("");
                 // Remove all of the potential A move blocks
                 let mut a_command = String::new();
-                for i in 0..a_end+1 {
+                for i in 0..a_end + 1 {
                     a_command.push_str(&path[i]);
                 }
                 new_path = new_path.replace(&a_command, "");
                 // Remove all of potential B move blocks
                 let mut b_command = String::new();
-                for i in b_start..b_end+1 {
+                for i in b_start..b_end + 1 {
                     b_command.push_str(&path[i]);
                 }
                 new_path = new_path.replace(&b_command, "");
@@ -300,31 +301,30 @@ impl AsciiMachine {
                     main_routine = main_routine.replace(&c_command, "C");
                     main_routine = main_routine.chars().join(",");
                     main_routine.push('\n');
-                    if main_routine.len() <= 21 {
-                        println!("[+] Generated main routine - good length!");
+                    if main_routine.len() > 21 {
+                        panic!("Bad main routine length: {}", main_routine.len());
                     }
                     commands.push(main_routine);
                     // Generate A sub-routine
                     a_command = Self::format_subroutine_string(a_command);
-                    if a_command.len() <= 21 {
-                        println!("[+] Generated subroutine A - good length!");
+                    if a_command.len() > 21 {
+                        panic!("Bad A-subroutine length: {}", a_command.len());
                     }
                     commands.push(a_command);
                     // Generate B sub-routine
                     b_command = Self::format_subroutine_string(b_command);
-                    if b_command.len() <= 21 {
-                        println!("[+] Generated subroutine B - good length!");
+                    if b_command.len() > 21 {
+                        panic!("Bad B-subroutine length: {}", b_command.len());
                     }
                     commands.push(b_command);
                     // Generate C sub-routine
                     c_command = Self::format_subroutine_string(c_command);
-                    if c_command.len() <= 21 {
-                        println!("[+] Generated subroutine C - good length!");
+                    if c_command.len() > 21 {
+                        panic!("Bad C-subroutine length: {}", c_command.len());
                     }
                     commands.push(c_command);
-                    // Camera feed state
+                    // Camera feed state - not enabled
                     commands.push("n\n".to_owned());
-                    println!("[+] Continuous camera feed - NOT ENABLED!");
                     return commands;
                 }
             }
@@ -332,6 +332,8 @@ impl AsciiMachine {
         return vec![];
     }
 
+    /// Takes the input movement subroutine string and inserts comma characters between turn and
+    /// move orders.
     fn format_subroutine_string(input: String) -> String {
         let mut output = input.clone();
         output = output.replace("L", ",L,");
@@ -341,28 +343,39 @@ impl AsciiMachine {
     }
 
     /// Checks if the next square in the given direction contains scaffold or not.
-    pub fn check_target_square_for_scaffold(&self, current_direction: Direction, current_location: Point) -> bool {
+    pub fn check_target_square_for_scaffold(
+        &self,
+        current_direction: Direction,
+        current_location: Point,
+    ) -> bool {
         let mut target_square = current_location;
         match current_direction {
             Direction::North => {
                 target_square.y -= 1;
-            },
+            }
             Direction::South => {
                 target_square.y += 1;
-            },
+            }
             Direction::East => {
                 target_square.x += 1;
-            },
+            }
             Direction::West => {
                 target_square.x -= 1;
-            },
+            }
         }
-        if target_square.x < 0 || target_square.x >= self.map_width || target_square.y < 0 || target_square.y >= self.map_height {
+        if target_square.x < 0
+            || target_square.x >= self.map_width
+            || target_square.y < 0
+            || target_square.y >= self.map_height
+        {
             return false;
         }
         let target_char = match self.map.get(&target_square) {
             Some(v) => *v,
-            None => panic!("Bad target square: [{:?}]. Map width is {}. Map height is {}.", target_square, self.map_width, self.map_height),
+            None => panic!(
+                "Bad target square: [{:?}]. Map width is {}. Map height is {}.",
+                target_square, self.map_width, self.map_height
+            ),
         };
         // let target_char = *self.map.get(&target_square).unwrap();
         return target_char == '#';
@@ -383,15 +396,26 @@ pub fn solution_part_2(filename: String) -> i64 {
     // Load up the ascii program to get camera view of scaffold
     let ascii_program = IntcodeMachine::extract_intcode_memory_from_filename(filename);
     let mut ascii_machine = AsciiMachine::new(ascii_program);
+    // Awaken robot and reset memory of intcode computer
+    ascii_machine.awaken_robot();
+    // Get the commands required for robot to traverse all scaffold locations at least once.
     let commands = ascii_machine.get_movement_commands();
+    // Provide movement commands as ASCII characters to robot
     for item in commands {
         for c in item.chars() {
             ascii_machine.intcode_computer.add_input(c as i64);
         }
     }
+    // Set robot off on crawl to meet the other robots left outside.
     ascii_machine.intcode_computer.execute_program();
-    let dust_collected = ascii_machine.intcode_computer.get_output_and_remove();
-    return dust_collected;
+    // Consume all outputs within ASCII character range of values until dust collected output
+    loop {
+        let output = ascii_machine.intcode_computer.get_output_and_remove();
+        if output <= 128 { // Value is within range of ASCII character values
+            continue;
+        }
+        return output; // Output here is amount of dust collected by vacuum robot.
+    }
 }
 
 #[cfg(test)]
@@ -402,5 +426,11 @@ mod tests {
     fn test_day_17_p1_solution() {
         let result = solution_part_1(String::from("./input/day_17/input.txt"));
         assert_eq!(3936, result);
+    }
+
+    #[test]
+    fn test_day_17_p2_solution() {
+        let result = solution_part_2(String::from("./input/day_17/input.txt"));
+        assert_eq!(785733, result);
     }
 }
