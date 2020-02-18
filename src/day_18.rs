@@ -133,30 +133,41 @@ pub fn solution_part_1(filename: String) -> u64 {
         }
     }
     // TODO: implement algorithm to find min. steps to collect all keys
+    let key_orders = keys_outstanding.iter().permutations(keys_outstanding.len());
+    let mut min_steps_seen = u64::max_value();
+    let mut count = 0;
+    for order in key_orders {
+        count += 1;
+        if count % 10000 == 0 {
+            println!("Conducting run {}", count);
+        }
+        let steps_taken = get_steps_for_key_order(&vault_graph, order);
+        if steps_taken != 0 && steps_taken < min_steps_seen {
+            min_steps_seen = steps_taken;
+        }
+    }
+    return min_steps_seen;
+}
+
+fn get_steps_for_key_order(vault_graph: &GraphMap<char, u64, petgraph::Undirected>, key_order: Vec<&char>) -> u64 {
     let mut current_node = '@';
     let mut steps_taken = 0;
-    loop {
-        // Find the closest key
-        let mut nearest_key = '#';
-        let mut lowest_distance = u64::max_value();
-        let neighbours: Vec<char> = vault_graph.neighbors(current_node).map(|x| x).collect();
-        for neighbour in neighbours.iter() {
-            let edge_weight = *vault_graph.edge_weight(current_node, *neighbour).unwrap();
-            if edge_weight < lowest_distance && neighbour.is_ascii_lowercase() {
-                lowest_distance = edge_weight;
-                nearest_key = *neighbour;
-            }
+    let mut keys_remaining = key_order.clone();
+    let mut vault_map_copy = vault_graph.clone();
+    for target_key in key_order {
+        if !vault_map_copy.contains_edge(current_node, *target_key) {
+            return 0;
         }
-        steps_taken += remove_node_and_update_edges(&mut vault_graph, current_node, nearest_key);
+        // Remove current node
+        steps_taken += remove_node_and_update_edges(&mut vault_map_copy, current_node, *target_key);
         // Move to the nearest key
-        current_node = nearest_key;
-        keys_outstanding.remove(&current_node);
+        current_node = *target_key;
+        keys_remaining.retain(|x| *x != target_key);
         // Open corresponding door
-        let door = current_node.to_ascii_uppercase();
-        doors_locked.remove(&door);
-        remove_node_and_update_edges(&mut vault_graph, door, nearest_key);
+        let door = target_key.to_ascii_uppercase();
+        remove_node_and_update_edges(&mut vault_map_copy, door, *target_key);
         // Check if we have picked up all the keys
-        if keys_outstanding.is_empty() {
+        if keys_remaining.is_empty() {
             break;
         }
     }
