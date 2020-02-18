@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use super::utils::fs;
 use super::utils::io;
 use petgraph::graphmap::GraphMap;
+use itertools::Itertools;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 struct Point {
@@ -132,5 +133,96 @@ pub fn solution_part_1(filename: String) -> u64 {
         }
     }
     // TODO: implement algorithm to find min. steps to collect all keys
-    unimplemented!();
+    let mut current_node = '@';
+    let mut steps_taken = 0;
+    loop {
+        // Find the closest key
+        let mut nearest_key = '#';
+        let mut lowest_distance = u64::max_value();
+        let neighbours: Vec<char> = vault_graph.neighbors(current_node).map(|x| x).collect();
+        for neighbour in neighbours.iter() {
+            let edge_weight = *vault_graph.edge_weight(current_node, *neighbour).unwrap();
+            if edge_weight < lowest_distance && neighbour.is_ascii_lowercase() {
+                lowest_distance = edge_weight;
+                nearest_key = *neighbour;
+            }
+        }
+        steps_taken += remove_node_and_update_edges(&mut vault_graph, current_node, nearest_key);
+        // Move to the nearest key
+        current_node = nearest_key;
+        keys_outstanding.remove(&current_node);
+        // Open corresponding door
+        let door = current_node.to_ascii_uppercase();
+        doors_locked.remove(&door);
+        remove_node_and_update_edges(&mut vault_graph, door, nearest_key);
+        // Check if we have picked up all the keys
+        if keys_outstanding.is_empty() {
+            break;
+        }
+    }
+    return steps_taken;
+}
+
+fn remove_node_and_update_edges(vault_graph: &mut GraphMap<char, u64, petgraph::Undirected>, current_node: char, nearest_key: char) -> u64 {
+    // Make new neighbour connections if new path through current node is shorter
+    let neighbours: Vec<char> = vault_graph.neighbors(current_node).map(|x| x).collect();
+    let neighbour_pairs = neighbours.iter().permutations(2);
+    for pair in neighbour_pairs {
+        // Calculate what the new path length would be if the neighbours were connected
+        let first_steps = *vault_graph.edge_weight(current_node, *pair[0]).unwrap();
+        let second_steps = *vault_graph.edge_weight(current_node, *pair[1]).unwrap();
+        let new_steps = first_steps + second_steps;
+        // Check if new edge should be added or updated (if exists and old steps less than new)
+        if !vault_graph.contains_edge(*pair[0], *pair[1]) {
+            vault_graph.add_edge(*pair[0], *pair[1], new_steps);
+        } else if *vault_graph.edge_weight(*pair[0], *pair[1]).unwrap() > new_steps {
+            vault_graph.add_edge(*pair[0], *pair[1], new_steps);
+        }
+    }
+    // Remove current node from vault graph
+    let mut steps_taken: u64 = 0;
+    for neighbour in neighbours.iter() {
+        if *neighbour == nearest_key {
+            steps_taken = *vault_graph.edge_weight(current_node, *neighbour).unwrap();
+        }
+        vault_graph.remove_edge(current_node, *neighbour);
+    }
+    vault_graph.remove_node(current_node);
+    return steps_taken;
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_d18_example_01() {
+        let result = solution_part_1(String::from("./input/day_18/test/test_01.txt"));
+        assert_eq!(8, result);
+    }
+
+    #[test]
+    fn test_d18_example_02() {
+        let result = solution_part_1(String::from("./input/day_18/test/test_02.txt"));
+        assert_eq!(86, result);
+    }
+
+    #[test]
+    fn test_d18_example_03() {
+        let result = solution_part_1(String::from("./input/day_18/test/test_03.txt"));
+        assert_eq!(132, result);
+    }
+
+    #[test]
+    fn test_d18_example_04() {
+        let result = solution_part_1(String::from("./input/day_18/test/test_04.txt"));
+        assert_eq!(136, result);
+    }
+
+    #[test]
+    fn test_d18_example_05() {
+        let result = solution_part_1(String::from("./input/day_18/test/test_05.txt"));
+        assert_eq!(81, result);
+    }
 }
