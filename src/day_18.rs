@@ -4,6 +4,8 @@ use super::utils::fs;
 use super::utils::io;
 use petgraph::graphmap::GraphMap;
 use itertools::Itertools;
+// use std::thread;
+use crossbeam::thread;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 struct Point {
@@ -48,7 +50,7 @@ pub fn solution_part_1(filename: String) -> u64 {
     let mut location = Point::new(0, 0);
     let mut key_and_door_locations: HashMap<Point, char> = HashMap::new();
     // Keep track of the keys not yet held and the doors still locked
-    let mut keys_outstanding: HashSet<char> = HashSet::new();
+    let mut keys_outstanding: Vec<char> = vec![];
     let mut doors_locked: HashSet<char> = HashSet::new();
     // Load up map state and record locations of keys, doors and start
     for line in raw_input.lines() {
@@ -57,7 +59,7 @@ pub fn solution_part_1(filename: String) -> u64 {
             if c == '@' || c.is_ascii_alphabetic() {
                 key_and_door_locations.insert(location.clone(), c);
                 if c.is_ascii_lowercase() {
-                    keys_outstanding.insert(c);
+                    keys_outstanding.push(c);
                 } else if c.is_ascii_uppercase() {
                     doors_locked.insert(c);
                 }
@@ -133,30 +135,63 @@ pub fn solution_part_1(filename: String) -> u64 {
         }
     }
     // TODO: implement algorithm to find min. steps to collect all keys
-    let key_orders = keys_outstanding.iter().permutations(keys_outstanding.len());
+    let mut key_orders = keys_outstanding.iter().permutations(keys_outstanding.len());
     let mut min_steps_seen = u64::max_value();
     let mut count = 0;
-    for order in key_orders {
-        count += 1;
+    loop {
+        count += 20;
         if count % 10000 == 0 {
-            println!("Conducting run {}", count);
+            println!("Up to key order {}", count);
         }
-        let steps_taken = get_steps_for_key_order(&vault_graph, order);
-        if steps_taken != 0 && steps_taken < min_steps_seen {
-            min_steps_seen = steps_taken;
+        let mut orders_finished = false;
+        thread::scope(|s| {
+            let mut handles: Vec<thread::ScopedJoinHandle<Option<u64>>> = vec![];
+            for _ in 0..20 {
+                let order = key_orders.next();
+                match order {
+                    Some(v) => {
+                        let handle = s.spawn(|_| {
+                            get_steps_for_key_order(&vault_graph.clone(), v)
+                        });
+                        handles.push(handle);
+                    },
+                    None => {
+                        orders_finished = true;
+                        break;
+                    }
+                }
+            }
+            let mut min_steps_batch = u64::max_value();
+            for handle in handles {
+                let result = handle.join().unwrap();
+                match result {
+                    None => continue,
+                    Some(steps_taken) => {
+                        if steps_taken < min_steps_batch {
+                            min_steps_batch = steps_taken;
+                        }
+                    },
+                }
+            }
+            if min_steps_batch < min_steps_seen {
+                min_steps_seen = min_steps_batch;
+            }
+        }).unwrap();
+        if orders_finished {
+            break;
         }
     }
     return min_steps_seen;
 }
 
-fn get_steps_for_key_order(vault_graph: &GraphMap<char, u64, petgraph::Undirected>, key_order: Vec<&char>) -> u64 {
+fn get_steps_for_key_order(vault_graph: &GraphMap<char, u64, petgraph::Undirected>, key_order: Vec<&char>) -> Option<u64> {
     let mut current_node = '@';
     let mut steps_taken = 0;
     let mut keys_remaining = key_order.clone();
     let mut vault_map_copy = vault_graph.clone();
     for target_key in key_order {
         if !vault_map_copy.contains_edge(current_node, *target_key) {
-            return 0;
+            return None;
         }
         // Remove current node
         steps_taken += remove_node_and_update_edges(&mut vault_map_copy, current_node, *target_key);
@@ -171,7 +206,7 @@ fn get_steps_for_key_order(vault_graph: &GraphMap<char, u64, petgraph::Undirecte
             break;
         }
     }
-    return steps_taken;
+    return Some(steps_taken);
 }
 
 fn remove_node_and_update_edges(vault_graph: &mut GraphMap<char, u64, petgraph::Undirected>, current_node: char, nearest_key: char) -> u64 {

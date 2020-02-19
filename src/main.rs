@@ -28,6 +28,7 @@ extern crate regex;
 extern crate primes;
 extern crate ndarray;
 extern crate petgraph;
+extern crate crossbeam;
 
 fn main() {
     let solution = day_18::solution_part_1(String::from("./input/day_18/input.txt"));
